@@ -255,6 +255,7 @@ public class ControlRST implements IControl {
 	 */
     
 	private void exec_LINECTRL_ALGO(){
+		//hier muss der PID-Regler hin
 		leftMotor.forward();
 		rightMotor.forward();
 		int lowPower = 1;
