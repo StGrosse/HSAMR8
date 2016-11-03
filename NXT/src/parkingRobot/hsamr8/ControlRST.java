@@ -259,7 +259,7 @@ public class ControlRST implements IControl {
 		leftMotor.forward();
 		rightMotor.forward();
 		int lowPower = 1;
-		int midPower = 10; //Verbesserung!
+		int midPower = 15; //Verbesserung!
 		int highPower = 30;
 		int white = 0;
 		int grey = 1;
@@ -310,7 +310,7 @@ public class ControlRST implements IControl {
 		else if(this.lineSensorLeft == grey && this.lineSensorRight == white) {
 				
 			// when left sensor is on the line, turn left
-			leftMotor.setPower(midPower);
+			leftMotor.setPower(lowPower);
 			rightMotor.setPower(highPower);
 			
 			// MONITOR (example)
@@ -321,7 +321,7 @@ public class ControlRST implements IControl {
 			
 			// when right sensor is on the line, turn right
 			leftMotor.setPower(highPower);
-			rightMotor.setPower(midPower);
+			rightMotor.setPower(lowPower);
 			
 			// MONITOR (example)
 			monitor.writeControlComment("turn half right");
@@ -329,6 +329,12 @@ public class ControlRST implements IControl {
 		else if (this.lineSensorRight == white && this.lineSensorLeft == white) {
 			leftMotor.setPower(highPower);
 			rightMotor.setPower(highPower);
+			
+			monitor.writeControlComment("straight on");
+		}
+		else if (this.lineSensorLeft == grey && this.lineSensorRight == grey){
+			leftMotor.setPower(midPower+5);
+			rightMotor.setPower(midPower+5);
 			
 			monitor.writeControlComment("straight on");
 		}
