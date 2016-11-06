@@ -15,6 +15,14 @@ import parkingRobot.INavigation;
  */
 public class ControlRST implements IControl {
 	
+	static final int option = 1; //line follower (1 --- example project, 2 --- PID)
+	int esuml =0; //integrator for PID-algo, left
+	int esumr =0; //integratot for PID-algo, right
+	int eoldl = 0; //e(k-1) for PID-algo, left
+	int eoldr =0; //e(k-1) for PID-algo, right
+	static final int T_a = 100; //sampling time
+	static final int u_r_max =40; //maximale power
+	static final int w =100; //Führungsgröße PID (white)
 	/**
 	 * reference to {@link IPerception.EncoderSensor} class for left robot wheel which measures the wheels angle difference
 	 * between actual an last request
@@ -218,10 +226,16 @@ public class ControlRST implements IControl {
 	 * update parameters during LINE Control Mode
 	 */
 	private void update_LINECTRL_Parameter(){
-		this.lineSensorRight		= perception.getRightLineSensor();
-		this.lineSensorLeft  		= perception.getLeftLineSensor();
-		//this.lineSensorLeft=perception.getLeftLineSensorValue();
-		//this.lineSensorRight=perception.getRightLineSensorValue();
+		if(option == 1){
+			this.lineSensorRight		= perception.getRightLineSensor();
+			this.lineSensorLeft  		= perception.getLeftLineSensor();
+		}
+		else if (option ==2){
+			this.lineSensorLeft			=perception.getLeftLineSensorValue();
+			this.lineSensorRight		=perception.getRightLineSensorValue();
+		}
+		
+		
 	}
 	
 	/**
@@ -249,12 +263,20 @@ public class ControlRST implements IControl {
 	
 	/**
 	 * DRIVING along black line
-	 * Minimalbeispiel
+	 * decides which option is executed
+	 */
+    private void exec_LINECTRL_ALGO(){
+    	if(this.option == 1) exec_LINECTRL_ALGO_opt1();
+    	else if (this.option == 2)exec_LINECTRL_ALGO_opt2();
+    	
+    }
+    /**
+	 * DRIVING along black line
+	 * verbessertes Minimalbeispiel
 	 * Linienverfolgung fuer gegebene Werte 0,1,2
 	 * white = 0, black = 2, grey = 1
 	 */
-    
-	private void exec_LINECTRL_ALGO(){
+	private void exec_LINECTRL_ALGO_opt1(){
 		
 		leftMotor.forward();
 		rightMotor.forward();
@@ -292,7 +314,7 @@ public class ControlRST implements IControl {
 			
 			// when left sensor is on the line, turn left
 			leftMotor.setPower(lowPower);
-			rightMotor.setPower(highPower);
+			rightMotor.setPower(highPower+5);
 			
 			// MONITOR (example)
 			monitor.writeControlComment("turn left");
@@ -311,7 +333,7 @@ public class ControlRST implements IControl {
 				
 			// when left sensor is on the line, turn left
 			leftMotor.setPower(midPower);
-			rightMotor.setPower(highPower);
+			rightMotor.setPower(highPower+5);
 			
 			// MONITOR (example)
 			monitor.writeControlComment("turn left");
@@ -338,6 +360,36 @@ public class ControlRST implements IControl {
 			
 			monitor.writeControlComment("straight on");
 		}*/
+	}
+	
+	/**
+	 * DRIVING along black line
+	 * Linienverfolgung mit PID-Regler
+	 * Führungsgröße: white (100)
+	 * Stellgröße: Pulsweite (power)
+	 * 
+	 */
+	
+	private void exec_LINECTRL_ALGO_opt2(){
+		double K_p = 0; //Proportionalbeiwert
+		double K_i = 0; //Integrationsbeiwert
+		double K_d = 0; //Differentiationsbeiwert
+		int e_l = w - this.lineSensorLeft;
+		int e_r = w - this.lineSensorRight;
+		this.esuml += e_l;
+		this.esumr += e_r;
+		
+		int u_r_l = (int)(u_r_max*(1-(K_p*e_l + K_i*T_a*esuml + K_d/T_a*(e_l-eoldl))));
+		int u_r_r = u_r_max - (int)(K_p*e_r + K_i*T_a*esumr + K_d/T_a*(e_r-eoldr));
+		
+		this.eoldl=e_l;
+		this.eoldr=e_r;
+		
+		leftMotor.setPower(u_r_l);
+		rightMotor.setPower(u_r_r);
+		
+		
+		
 	}
 	
 	private void stop(){
