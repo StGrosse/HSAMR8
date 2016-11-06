@@ -258,9 +258,9 @@ public class ControlRST implements IControl {
 		//hier muss der PID-Regler hin
 		leftMotor.forward();
 		rightMotor.forward();
-		int lowPower = 1;
+		int lowPower = 3;
 		int midPower = 15; //Verbesserung!
-		int highPower = 30;
+		int highPower = 40;
 		int white = 0;
 		int grey = 1;
 		int black = 2;
@@ -310,21 +310,21 @@ public class ControlRST implements IControl {
 		else if(this.lineSensorLeft == grey && this.lineSensorRight == white) {
 				
 			// when left sensor is on the line, turn left
-			leftMotor.setPower(lowPower);
+			leftMotor.setPower(midPower);
 			rightMotor.setPower(highPower);
 			
 			// MONITOR (example)
-			monitor.writeControlComment("turn half left");
+			monitor.writeControlComment("turn left");
 				
 		} 
 		else if(this.lineSensorRight == grey && this.lineSensorLeft == white) {
 			
 			// when right sensor is on the line, turn right
 			leftMotor.setPower(highPower);
-			rightMotor.setPower(lowPower);
+			rightMotor.setPower(midPower);
 			
 			// MONITOR (example)
-			monitor.writeControlComment("turn half right");
+			monitor.writeControlComment("turn right");
 		}
 		else if (this.lineSensorRight == white && this.lineSensorLeft == white) {
 			leftMotor.setPower(highPower);
@@ -332,12 +332,12 @@ public class ControlRST implements IControl {
 			
 			monitor.writeControlComment("straight on");
 		}
-		else if (this.lineSensorLeft == grey && this.lineSensorRight == grey){
-			leftMotor.setPower(midPower+5);
-			rightMotor.setPower(midPower+5);
+		/*else if(this.lineSensorRight == grey && this.lineSensorLeft == grey){
+			leftMotor.setPower(highPower);
+			rightMotor.setPower(highPower);
 			
 			monitor.writeControlComment("straight on");
-		}
+		}*/
 	}
 	
 	private void stop(){
