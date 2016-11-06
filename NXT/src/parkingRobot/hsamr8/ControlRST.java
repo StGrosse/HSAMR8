@@ -376,11 +376,13 @@ public class ControlRST implements IControl {
 		double K_d = 0; //Differentiationsbeiwert
 		int e_l = w - this.lineSensorLeft;
 		int e_r = w - this.lineSensorRight;
-		this.esuml += e_l;
-		this.esumr += e_r;
+		if(e_l < 10)esuml=0;
+		else this.esuml += e_l;
+		if(e_r < 10)esumr=0;
+		else this.esumr += e_r;
 		
 		int u_r_l = (int)(u_r_max*(1-(K_p*e_l + K_i*T_a*esuml + K_d/T_a*(e_l-eoldl))));
-		int u_r_r = u_r_max - (int)(K_p*e_r + K_i*T_a*esumr + K_d/T_a*(e_r-eoldr));
+		int u_r_r = (int)(u_r_max*(1-(K_p*e_r + K_i*T_a*esumr + K_d/T_a*(e_r-eoldr))));
 		
 		this.eoldl=e_l;
 		this.eoldr=e_r;
