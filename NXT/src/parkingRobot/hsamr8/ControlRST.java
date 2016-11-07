@@ -8,6 +8,7 @@ import parkingRobot.IPerception;
 import parkingRobot.IPerception.*;
 import lejos.nxt.NXTMotor;
 import parkingRobot.INavigation;
+import lejos.nxt.Sound;
 
 /**
  * Main class for control module
@@ -15,7 +16,7 @@ import parkingRobot.INavigation;
  */
 public class ControlRST implements IControl {
 	
-	static final int option = 1; //line follower (1 --- example project, 2 --- PID)
+	int option = 2; //line follower (1 --- example project, 2 --- PID)
 	int esuml =0; //integrator for PID-algo, left
 	int esumr =0; //integratot for PID-algo, right
 	int eoldl = 0; //e(k-1) for PID-algo, left
@@ -23,6 +24,10 @@ public class ControlRST implements IControl {
 	static final int T_a = 100; //sampling time
 	static final int u_r_max =40; //maximale power
 	static final int w =100; //Führungsgröße PID (white)
+	boolean curve = false;
+	int[] lastLeftValues = new int[4];
+	int[] lastRightValues = new int[4];
+	int count;
 	/**
 	 * reference to {@link IPerception.EncoderSensor} class for left robot wheel which measures the wheels angle difference
 	 * between actual an last request
@@ -231,8 +236,21 @@ public class ControlRST implements IControl {
 			this.lineSensorLeft  		= perception.getLeftLineSensor();
 		}
 		else if (option ==2){
-			this.lineSensorLeft			=perception.getLeftLineSensorValue();
-			this.lineSensorRight		=perception.getRightLineSensorValue();
+			int LLSV = perception.getLeftLineSensorValue();
+			int RLSV = perception.getRightLineSensorValue();
+			
+			if(LLSV>100) this.lineSensorLeft = 100;
+			else if (LLSV<0) this.lineSensorLeft = 0;
+			else this.lineSensorLeft = LLSV;
+			
+			if(RLSV>100) this.lineSensorRight = 100;
+			else if(RLSV<0) this.lineSensorRight =0;
+			else this.lineSensorRight = RLSV;
+			
+			//monitor.writeControlComment("links bekommen: " + perception.getLeftLineSensorValue());
+			//monitor.writeControlComment("links übernommen: " + this.lineSensorLeft);
+			//monitor.writeControlComment("rechts bekommen: " + perception.getRightLineSensorValue());
+			//monitor.writeControlComment("rechts übernommen: "+ this.lineSensorRight);
 		}
 		
 		
@@ -266,8 +284,8 @@ public class ControlRST implements IControl {
 	 * decides which option is executed
 	 */
     private void exec_LINECTRL_ALGO(){
-    	if(this.option == 1) exec_LINECTRL_ALGO_opt1();
-    	else if (this.option == 2)exec_LINECTRL_ALGO_opt2();
+    	if(option == 1) exec_LINECTRL_ALGO_opt1();
+    	else if (option == 2) exec_LINECTRL_ALGO_opt2();
     	
     }
     /**
@@ -371,9 +389,12 @@ public class ControlRST implements IControl {
 	 */
 	
 	private void exec_LINECTRL_ALGO_opt2(){
-		double K_p = 0; //Proportionalbeiwert
-		double K_i = 0; //Integrationsbeiwert
-		double K_d = 0; //Differentiationsbeiwert
+		leftMotor.forward();
+		rightMotor.forward();
+		
+		final double K_p = 0.01; //Proportionalbeiwert (<=0.01)
+		final double K_i = 0; //Integrationsbeiwert
+		final double K_d = 0; //Differentiationsbeiwert
 		int e_l = w - this.lineSensorLeft;
 		int e_r = w - this.lineSensorRight;
 		if(e_l < 10)esuml=0;
@@ -381,15 +402,51 @@ public class ControlRST implements IControl {
 		if(e_r < 10)esumr=0;
 		else this.esumr += e_r;
 		
-		int u_r_l = (int)(u_r_max*(1-(K_p*e_l + K_i*T_a*esuml + K_d/T_a*(e_l-eoldl))));
-		int u_r_r = (int)(u_r_max*(1-(K_p*e_r + K_i*T_a*esumr + K_d/T_a*(e_r-eoldr))));
 		
-		this.eoldl=e_l;
-		this.eoldr=e_r;
+		int u_r_l = (int)(u_r_max *(1-(K_p*e_l + K_i*T_a*esuml + K_d/T_a*(e_l-eoldl))));
+		int u_r_r = (int)((u_r_max) *(1-(K_p*e_r + K_i*T_a*esumr + K_d/T_a*(e_r-eoldr))));
+		
+		
+		if(e_r>=85 && e_l>=85){
+			if(e_l>e_r){
+				u_r_r = u_r_max+5;
+				u_r_l = 5;
+				//Sound.twoBeeps();
+				monitor.writeControlComment("linkskurve");
+			}
+			if(e_l<e_r){
+				u_r_r = 5;
+				u_r_l = u_r_max;
+				//Sound.twoBeeps();
+				monitor.writeControlComment("rechtskurve");
+			}
+		}
+		
+		else if(e_r>=85){
+			u_r_r = 5;
+			u_r_l = u_r_max;
+			//Sound.beep();
+			monitor.writeControlComment("rechtskurve");
+		}
+		
+		else if(e_l>=85){
+			u_r_r = u_r_max+5;
+			u_r_l = 5;
+			//Sound.beep();
+			monitor.writeControlComment("linkskurve");
+		}
 		
 		leftMotor.setPower(u_r_l);
 		rightMotor.setPower(u_r_r);
 		
+		this.eoldl=e_l;
+		this.eoldr=e_r;
+		
+		monitor.writeControlComment("links: Sensor: " + this.lineSensorLeft + " Diff: "+ e_l + " Ausgg.: " + u_r_l);
+		monitor.writeControlComment("rechts: Sensor: " + this.lineSensorRight + " Diff: "+ e_r + " Ausgg.: " + u_r_r);
+		
+		/*monitor.writeControlComment("links: " + this.lineSensorLeft);
+		monitor.writeControlComment("rechts: " + this.lineSensorRight);*/
 		
 		
 	}
