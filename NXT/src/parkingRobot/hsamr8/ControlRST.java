@@ -473,16 +473,18 @@ public class ControlRST implements IControl {
 	 */
 	
 	private void exec_LINECTRL_ALGO_opt2(){
-		final int kp = 0;
-		final int ki = 0;
-		final int kd = 0;
+		leftMotor.forward();
+		rightMotor.forward();
+		final double kp = 0.0601; //kein Überschwingen, erreicht stationären Endwert nicht, nähert sich aber dem stationären Endwert ab 0.601 mit großer Zeitkonstante an
+		final double ki = 0.0070; //geringes Überschwingen des Roboters, akzeptable Dynamik
+		final double kd = 0.095; //ab 0.13 deutliches Aufschwingen --> erhöhe kd so, dass ausreichend Phasenreserve bei akzeptabler Dynamik
 		
 		count ++; //M
 		count %= 4;
 		this.lastLeftValues[count]=this.lineSensorLeft; //speichere den aktuellen Wert
 		this.lastRightValues[count]=this.lineSensorRight;
 		
-		if(curve != dest.no){
+		/*if(curve != dest.no){
 			this.curveAlgo();
 			this.monitor.writeControlComment("Kurve");
 			return;
@@ -495,7 +497,6 @@ public class ControlRST implements IControl {
 			this.encoderSum=0;
 			this.curveAlgo();
 			return;
-			
 		}
 		
 		if ((this.lastRightValues[Math.abs((count-3)%4)]-this.lastRightValues[count])>90){
@@ -504,21 +505,23 @@ public class ControlRST implements IControl {
 			this.curveAlgo();
 			return;
 		}
-		//}
+		//}*/
 			
 		int e = this.lineSensorLeft - this.lineSensorRight; //Berechne Fehler aus Differenz der Werte --> w = 0
 		if(e<10)esum_line=0;
-		int u_r = (int)(kp*e + ki*T_a*esum_line+kd/T_a*(e-this.eold));
-		int u_r_l = u_r_max+u_r;
-		int u_r_r = u_r_max-u_r;
-		leftMotor.setPower(u_r_max+u_r);
-		rightMotor.setPower(u_r_max - u_r);
+		int u_r = (int)(kp*e + ki*esum_line+kd*(e-this.eold));
+		int a = u_r_max + u_r;
+		int b = u_r_max + 5 - ((int)(2*u_r)) ;
+		this.monitor.writeControlComment("u_r_l: "+ a);
+		this.monitor.writeControlComment("u_r_r: "+ b);
+		this.leftMotor.setPower(a);
+		this.rightMotor.setPower(b);
 		this.esum_line+=e;
 		this.eold=e;
 		monitor.writeControlVar("Fehler","" + e);
-		monitor.writeControlVar("leftMotor", ""+u_r_l);
-		monitor.writeControlVar("rigthMotor",""+u_r_r);
-		monitor.writeControlVar("leftSensor","" + this.lineSensorLeft);
+		monitor.writeControlVar("LeftMotor", ""+a);
+		monitor.writeControlVar("RightMotor",""+b);
+		monitor.writeControlVar("LeftSensor","" + this.lineSensorLeft);
 		monitor.writeControlVar("RightSensor","" + this.lineSensorRight);
 		
 	}
