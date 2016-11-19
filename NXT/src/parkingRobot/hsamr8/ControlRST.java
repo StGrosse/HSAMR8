@@ -58,7 +58,7 @@ public class ControlRST implements IControl {
 	int time=0;
 	int zähler =0;
 	int power=10;
-	//int lock = 0;
+	int lock =25;
 	/**
 	 * reference to {@link IPerception.EncoderSensor} class for left robot wheel which measures the wheels angle difference
 	 * between actual an last request
@@ -227,6 +227,7 @@ public class ControlRST implements IControl {
 	public void exec_CTRL_ALGO(){
 		this.angleMeasurementLeft=this.encoderLeft.getEncoderMeasurement();
 		this.angleMeasurementRight=this.encoderRight.getEncoderMeasurement();
+		//die nächsten drei zeilen nur zum testen der kurvenfahrt
 		//this.calcAngVelPerPercent();//Methode zur experimentellen Bestimmung von AngVelPerPercent
 		
 		switch (currentCTRLMODE)
@@ -371,6 +372,9 @@ public class ControlRST implements IControl {
     		this.setVelocity(10);
     		exec_VWCTRL_ALGO();
     	}
+    	else if(option==4){
+    		this.kurventest();
+    	}
     		
     	
     }
@@ -476,44 +480,55 @@ public class ControlRST implements IControl {
 		leftMotor.forward();
 		rightMotor.forward();
 		final double kp = 0.0601; //kein Überschwingen, erreicht stationären Endwert nicht, nähert sich aber dem stationären Endwert ab 0.601 mit großer Zeitkonstante an
-		final double ki = 0.0070; //geringes Überschwingen des Roboters, akzeptable Dynamik
+		final double ki = 0.0082; //geringes Überschwingen des Roboters, akzeptable Dynamik
 		final double kd = 0.095; //ab 0.13 deutliches Aufschwingen --> erhöhe kd so, dass ausreichend Phasenreserve bei akzeptabler Dynamik
-		
+								//optimaler ermittelter Wert auf Gerade:0.09, zerstört aber die Kurvenfahrt aufgrund zu schneller Bewegungen --> wieder etwas veringert 
+								//--> schlechtere Dynamik beim Einschwingen, dafür (hoffentlich) stabilere Kurvenfahrt
 		count ++; //M
 		count %= 4;
 		this.lastLeftValues[count]=this.lineSensorLeft; //speichere den aktuellen Wert
 		this.lastRightValues[count]=this.lineSensorRight;
+		int e = this.lineSensorLeft - this.lineSensorRight; //Berechne Fehler aus Differenz der Werte --> w = 0
 		
-		/*if(curve != dest.no){
+		if(curve != dest.no){
 			this.curveAlgo();
 			this.monitor.writeControlComment("Kurve");
 			return;
 		}
-		
-		//if(lock<=0){
-		
-		if ((this.lastLeftValues[Math.abs((count-3)%4)]-this.lastLeftValues[count])>90){
-			curve=dest.left;
-			this.encoderSum=0;
-			this.curveAlgo();
-			return;
+		else{
+		//Kurvendetektion, funktioniert stellenweise schon gut
+		if(lock<=0){		
+			if (((e-eold)<=-35) && (this.lineSensorLeft<=50) && (this.lineSensorRight>=50)){
+				curve=dest.right;
+				this.encoderSum=0;
+				this.curveAlgo();
+				monitor.writeControlVar("Fehler","" + e);
+				monitor.writeControlVar("LeftMotor", "0");
+				monitor.writeControlVar("RightMotor","0");
+				monitor.writeControlVar("LeftSensor","" + this.lineSensorLeft);
+				monitor.writeControlVar("RightSensor","" + this.lineSensorRight);
+				return;
+			}
+	
+			if (((e-eold)>=35) && (this.lineSensorLeft>=50) && (this.lineSensorRight<=50)){
+				curve=dest.left;
+				this.encoderSum=0;
+				this.curveAlgo();
+				monitor.writeControlVar("Fehler","" + e);
+				monitor.writeControlVar("LeftMotor", "0");
+				monitor.writeControlVar("RightMotor","0");
+				monitor.writeControlVar("LeftSensor","" + this.lineSensorLeft);
+				monitor.writeControlVar("RightSensor","" + this.lineSensorRight);
+				return;
+			}
 		}
-		
-		if ((this.lastRightValues[Math.abs((count-3)%4)]-this.lastRightValues[count])>90){
-			curve=dest.right;
-			this.encoderSum=0;
-			this.curveAlgo();
-			return;
-		}
-		//}*/
-			
-		int e = this.lineSensorLeft - this.lineSensorRight; //Berechne Fehler aus Differenz der Werte --> w = 0
+				
 		if(e<10)esum_line=0;
 		int u_r = (int)(kp*e + ki*esum_line+kd*(e-this.eold));
 		int a = u_r_max + u_r;
-		int b = u_r_max + 5 - ((int)(2*u_r)) ;
-		this.monitor.writeControlComment("u_r_l: "+ a);
-		this.monitor.writeControlComment("u_r_r: "+ b);
+		int b = u_r_max + - u_r;
+		/*this.monitor.writeControlComment("u_r_l: "+ a);
+		this.monitor.writeControlComment("u_r_r: "+ b);*/
 		this.leftMotor.setPower(a);
 		this.rightMotor.setPower(b);
 		this.esum_line+=e;
@@ -523,7 +538,8 @@ public class ControlRST implements IControl {
 		monitor.writeControlVar("RightMotor",""+b);
 		monitor.writeControlVar("LeftSensor","" + this.lineSensorLeft);
 		monitor.writeControlVar("RightSensor","" + this.lineSensorRight);
-		
+		lock--;
+		}
 	}
 	/**
 	 * Funktion, die eine reibungslose Kurvenfahrt sicherstellen soll, indem sich der Roboter um x Grad
@@ -531,36 +547,43 @@ public class ControlRST implements IControl {
 	 */
 	
 	private void curveAlgo(){
+		this.leftMotor.forward();
+		this.rightMotor.forward();
 		if(curve == dest.right){
 			this.encoderSum+=this.angleMeasurementRight.getAngleSum();
-			if(encoderSum>=200) {
+			if(encoderSum>=395) {
 				curve = dest.no;
-				//lock = 10;
+				this.esum_line=0;
+				this.eold=0;
+				monitor.writeControlComment("Kurve zurückgesetzt");
+				lock = 10;
 				for(int i=0;i<=3;i++){
 					lastRightValues[i]=0;
 					lastLeftValues[i]=0;
 				}
-				return;
 			}
 			else {
-				rightMotor.setPower(u_r_max);
-				leftMotor.setPower(3);
+				rightMotor.setPower(u_r_max+6);
+				leftMotor.setPower(11);
 			}
 		}
 		
 		if(curve == dest.left){
 			this.encoderSum+=this.angleMeasurementLeft.getAngleSum();
-			if(encoderSum>=200){
-				curve = dest.no;
+			if(encoderSum>=395){
+				this.curve = dest.no;
+				lock = 10;
+				this.esum_line=0;
+				this.eold=0;
+				monitor.writeControlComment("Kurve zurückgesetzt");
 				for(int i=0;i<=3;i++){
 					lastRightValues[i]=0;
 					lastLeftValues[i]=0;
 				}
-				return;
 			}
 			else {
-				rightMotor.setPower(3);
-				leftMotor.setPower(u_r_max);
+				rightMotor.setPower(11);
+				leftMotor.setPower(u_r_max+6);
 			}
 		}
 		
@@ -628,6 +651,28 @@ public class ControlRST implements IControl {
 		if(power==100){
 			this.stop();
 		}
+		
+	}
+	private void kurventest(){
+		this.leftMotor.forward();
+		this.rightMotor.forward();
+			this.encoderSum+=this.angleMeasurementRight.getAngleSum();
+			if(encoderSum>=220) {
+				curve = dest.stop;
+				this.esum_line=0;
+				this.eold=0;
+				monitor.writeControlComment("Kurve zurückgesetzt");
+				lock = 20;
+				for(int i=0;i<=3;i++){
+					lastRightValues[i]=0;
+					lastLeftValues[i]=0;
+				}
+				this.stop();
+			}
+			else {
+				rightMotor.setPower(u_r_max);
+				leftMotor.setPower(-10);
+			}
 		
 	}
 }
