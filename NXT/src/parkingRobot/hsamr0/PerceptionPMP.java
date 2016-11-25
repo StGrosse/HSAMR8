@@ -248,6 +248,7 @@ public class PerceptionPMP implements IPerception {
 				readBytesSumm=0;
 			}
 		}
+		this.showSensorData();
 		if(timeoutc==20) return;
 		this.UOdmometry		=	(double)(((sensorBytes[1])<<8) | (sensorBytes[0] & 0xff));
 		this.VOdometry		=	(double)(((sensorBytes[3])<<8) | (sensorBytes[2] & 0xff));

@@ -97,17 +97,21 @@ public interface INavigation {
 			/**
 			 * indicates, that the parking slot is suitable for parking
 			 */
-			SUITABLE_FOR_PARKING,
+			GOOD,
 			/**
 			 * indicates, that the parking slot is not suitable for parking
 			 */
-			NOT_SUITABLE_FOR_PARKING
+			BAD,
+			/**
+			 * indicates, that still searching for parking
+			 */
+			RESCAN
 		}
 		/**
 		 * characterization of the parking slot measurement with the defined state value.
 		 * Per default is the parking slot not suitable.
 		 */
-		private ParkingSlotStatus status = ParkingSlotStatus.NOT_SUITABLE_FOR_PARKING;
+		private ParkingSlotStatus status = ParkingSlotStatus.RESCAN;
 		/**
 		 * stores the quality of parking slot measurement. Lower value assumes lower quality.
 		 */

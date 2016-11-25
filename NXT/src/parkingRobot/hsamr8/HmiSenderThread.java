@@ -107,6 +107,9 @@ public class HmiSenderThread extends Thread{
 			hmi.dataOut.writeDouble(hmi.perception.getFrontSideSensorDistance());
 			hmi.dataOut.writeDouble(hmi.perception.getBackSensorDistance());
 			hmi.dataOut.writeDouble(hmi.perception.getBackSideSensorDistance());
+			this.monitor.writeHmiComment("front: )"+ hmi.perception.getFrontSensorDistance());
+			this.monitor.writeHmiComment("front side: " + hmi.perception.getFrontSideSensorDistance());
+			
 			
 			hmi.dataOut.flush();
 

@@ -5,8 +5,9 @@ import lejos.robotics.navigation.Pose;
 
 import parkingRobot.INavigation;
 import parkingRobot.IPerception;
-import parkingRobot.hsamr8.NavigationThread;
 import parkingRobot.IMonitor;
+
+import parkingRobot.hsamr8.NavigationThread;
 
 
 /**
