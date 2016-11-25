@@ -682,9 +682,6 @@ public class ControlRST implements IControl {
 		double [] speed = {speedDegLeft, speedDegRight};
 		return speed;
 	}
-	/**diese Funktion berechnet eine Proportionalitätskponstante
-	 * 
-	 */
 	private void calcAngVelPerPercent(){
 		leftMotor.forward();
 		rightMotor.forward();
