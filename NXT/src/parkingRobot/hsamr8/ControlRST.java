@@ -12,6 +12,7 @@ import parkingRobot.INavigation;
 //import lejos.nxt.Sound;
 import java.lang.Math;
 //import lejos.nxt.LCD;
+import java.util.LinkedList;
 
 /**
  * Main class for control module
@@ -20,7 +21,7 @@ import java.lang.Math;
 public class ControlRST implements IControl {
 	
 	int v=0;
-	int option = 2; //line follower (1 --- example project, 2 --- PID)
+	int option = 3; //line follower (1 --- example project, 2 --- PID)
 	int esuml =0; //integrator for PID-algo, left (PID Linefollower Version 1)
 	int esumr =0; //integrator for PID-algo, right (PID Linefollower Version 1)
 	int esum_line =0;//integrator for PID-algo (PID Linefollower version 2)
@@ -38,14 +39,20 @@ public class ControlRST implements IControl {
 	static final double r_wheel = 2.7; //Radius der Räder in cm
 	static final double distPerTurn = 2*Math.PI*r_wheel; //gefahrene Distanz pro Radumdrehung in cm
 	static final double distPerDeg = distPerTurn/360; //gefahrene Distanz pro Grad Radumdrehung in cm
-	static final double angVelPerPercent = 0; //Winkelgeschwindigkeit pro Prozent Motoransteuerung (Annahme: v~PW)
-	static final double offsetAngVelPerPercent = 0; //Offset der Gerade w_wheel(PW)
+	static final double angVelPerPercentR = 8.1; //Winkelgeschwindigkeit (in Grad pro Sekunde) pro Prozent Motoransteuerung (Annahme: v~PW)
+	static final double angVelPerPercentL = 8.0;
+	static final double offsetAngVelPerPercentL = -57.4; //Offset der Gerade w_wheel(PW) in Grad, ,links
+	static final double offsetAngVelPerPercentR = -67.6; //Offset der Geraden w_wheel(PW) in Grad, rechts
 	static final double kp = 0.0601; //Proportionalbeiwert PID Linefollower
 	static final double ki = 0.0082; //Integrierbeiwert PID Linefollower
 	static final double kd = 0.095; //Differentierbeiwert PID Linefollower
 	boolean straight = true; //Kurve erkannt, fahre bis Kurvenscheitel
 	static final int akku_max = 0;//maximale spannung akku in mV
 	boolean first = true;
+	int u_old_l=0;
+	int u_old_r=0;
+	LinkedList<Double> fehler = new LinkedList<>();
+	LinkedList<Double> geschw = new LinkedList<>();
 	
 	enum dest{
 		left, //robot shall drive right
@@ -133,6 +140,9 @@ public class ControlRST implements IControl {
 	 * @param rightMotor corresponding NXTMotor object
 	 */
 	public ControlRST(IPerception perception, INavigation navigation, NXTMotor leftMotor, NXTMotor rightMotor, IMonitor monitor){
+		for(int i=0;i<=9;i++)fehler.add(0.0);
+		for(int i=0;i<=9;i++)geschw.add(0.0);
+		
 		this.perception = perception;
         this.navigation = navigation;
         this.monitor = monitor;
@@ -147,16 +157,15 @@ public class ControlRST implements IControl {
 		this.lineSensorLeft  		= perception.getLeftLineSensor();
 		
 		// MONITOR für PID-Regler Linienverfolgung
-		monitor.addNavigationVar("X");
-		monitor.addControlVar("RightSensor");
+		/*monitor.addControlVar("RightSensor");
 		monitor.addControlVar("LeftSensor");
 		monitor.addControlVar("Fehler"); //für Version 2 des PID-Reglers
 		monitor.addControlVar("RightMotor");
-		monitor.addControlVar("LeftMotor");
-		/*MONITOR für Dimensionierung PID-Regler V/W-Control linkes Rad
+		monitor.addControlVar("LeftMotor");*/
+		//MONITOR für Dimensionierung PID-Regler V/W-Control linkes Rad
 		monitor.addControlVar("wRadLinks");
 		monitor.addControlVar("FehlerLinks");
-		monitor.addControlVar("PWLinks");*/
+		monitor.addControlVar("PWLinks");
 		/*MONITOR für Dimensionierung PID-Regler V/W-Control rechtes Rad
 		monitor.addControlVar("wRadRechts");
 		monitor.addControlVar("FehlerRechts");
@@ -305,45 +314,70 @@ public class ControlRST implements IControl {
 	 * optionally one of them could be set to zero for simple test.
 	 */
     private void exec_VWCTRL_ALGO(){
-    	/*double kp_l=0;
-    	double ki_l=0;
-    	double kd_l=0;
-    	double kp_r=0;
-    	double ki_r=0;
-    	double kd_r=0;*/
+    	leftMotor.forward();
+    	rightMotor.forward();
+    	double kp_l=0.031;
+    	double ki_l=0.00075;//sehr schwer einzustellen
+    	double kd_l=0.015;//vorsichtig, da starkes messrauschen! großer akzeptabler bereich, nach korrektur von ki nötig
+    	double kp_r=0.025;
+    	double ki_r=0.0004;
+    	double kd_r=0.012;
 		double [] speed = this.drive(this.velocity, this.angularVelocity); //berechne benötigte Winkelgeschwindigkeiten
+		//zu Testzwecken manuelles setzen der Radgeschwindigkeiten:
+		speed[0]=0;
+		speed[1]=120;
+		this.monitor.writeControlComment("Zielgeschwindigkeit: "+speed[1]);
 		//Steuerung der Motoren (ohne Regelung) auf Basis von experimentell bestimmter Proportionalitätskonstante
-		this.leftMotor.setPower((int)((speed[0]-offsetAngVelPerPercent)/angVelPerPercent)); //mit w_wheel=angVelPerPercent*power+offsetAngVelPerPercent (lineare Näherung)
-		this.rightMotor.setPower((int)((speed[1]-offsetAngVelPerPercent)/angVelPerPercent));
+		/*this.leftMotor.setPower((int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL)); //mit w_wheel=angVelPerPercent*power+offsetAngVelPerPercent (lineare Näherung)
+		this.rightMotor.setPower((int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR));
+		this.monitor.writeControlComment("links: "+(int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL)+" rechts: "+(int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR));
+		*/
 		
-		/*
 		//Berechnung der aktuellen Geschwindigkeit und Winkelgeschwindigkeit aus Daten der Rad-Encoder:
 		//Winkelgeschwindigkeit linkes Rad in Grad/sec
-		double w_akt_l=this.angleMeasurementLeft.getAngleSum()/this.angleMeasurementLeft.getDeltaT()/1000;
+		double w_akt_l=(double)(this.angleMeasurementLeft.getAngleSum())/(double)(this.angleMeasurementLeft.getDeltaT()/1000.0);
 		//Winkelgeschwindigkeit rechtes Rad in Grad/sec
-		double w_akt_r=this.angleMeasurementRight.getAngleSum()/this.angleMeasurementRight.getDeltaT()/1000;	
+		double w_akt_r=(double)(this.angleMeasurementRight.getAngleSum())/(double)(this.angleMeasurementRight.getDeltaT()/1000.0);	
 		
 		//Regelung der Motoren mit PID-Regler
-		double e_l = this.speedDegLeft-w_akt_l;//Fehler links in Grad/sec
-		double e_r = this.speedDegRight-w_akt_r;//Fehler rechts in Grad/sec
+		double e_l = speed[0]-w_akt_l;//Fehler links in Grad/sec
+		double e_r = speed[1]-w_akt_r;//Fehler rechts in Grad/sec
 		
 		//Berechnung der Stellgrößen (Pulsweite)
-		double u_l = kp_l*e_l+ki_l*T_a*this.esuml_vw+kd_l/T_a*(e_l-this.eoldl_vw);
-		double u_r = kp_r*e_r+ki_r*T_a*this.esumr_vw+kd_r/T_a*(e_r-this.eoldr_vw);*/
+		double u_l = kp_l*e_l+ki_l*this.esuml_vw+kd_l*(e_l-this.eoldl_vw);
+		double u_r = kp_r*e_r+ki_r*this.esumr_vw+kd_r*(e_r-this.eoldr_vw);
+		double pw_l=u_old_l+u_l;
+		double pw_r=u_old_r+u_r;
+		u_old_l=(int)pw_l;
+		u_old_r=(int)pw_r;
+		fehler.add(0, e_r);
+		geschw.add(0,w_akt_r);
+		geschw.remove(geschw.size()-1);
+		fehler.remove(fehler.size()-1);
+		double mw=0;
+		double mw2=0;
+		for(double a:fehler)mw+=a;
+		for(double b:geschw)mw2+=b;
+		mw/=(fehler.size());
+		mw2/=(geschw.size());
+		esuml_vw+=e_l;
+		esumr_vw+=e_r;
+		this.eoldl_vw=e_l;
+		this.eoldr_vw=e_r;
 		
-		/* Ausschriften Dimensionierung links
-		monitor.writeControlVar("wRadLinks", ""+w_akt_l);
-		monitor.writeControlVar("FehlerLinks","" + e_l);
-		monitor.writeControlVar("PWLinks","" + u_l);*/
+		//Ausschriften Dimensionierung links
+		monitor.writeControlVar("wRadLinks", ""+mw2);
+		monitor.writeControlVar("FehlerLinks","" + mw);
+		monitor.writeControlVar("PWLinks","" + (int)pw_r);
 		
 		/*Ausschriften Dimensionierung rechts
 		monitor.writeControlVar("wRadRechts",""+w_akt_r);
 		monitor.writeControlVar("FehlerRechts",""+e_r);
 		monitor.writeControlVar("PWRechts",""+u_r);*/
 		
-		/*//Ansteuerung der Motoren
-		leftMotor.setPower((int)u_l);
-		rightMotor.setPower((int)u_r);*/
+		//Ansteuerung der Motoren
+		leftMotor.setPower((int)pw_l);
+		rightMotor.setPower((int)pw_r);
 		
 	}
 	
@@ -371,9 +405,9 @@ public class ControlRST implements IControl {
     	else if (option == 2) exec_LINECTRL_ALGO_opt2(); //Variante 2 der Linienverfolgung
     	//Umgehung des Guidance-Moduls zum Testen von v/w-Control --> manuelles Setzen von v und omega --> Sprungantwort
     	else if (option == 3) {
-    		this.setAngularVelocity(15);
-    		this.setVelocity(0.1);
-    		exec_VWCTRL_ALGO();
+    		this.setAngularVelocity(Math.PI/12); //winkelgeschwindigkeit in 1/s
+    		this.setVelocity(0.0); //Geschwindigkeit in m/s
+    		exec_VWCTRL_ALGO();    		
     	}
     	else if(option==4){
     		this.calcAngVelPerPercent();
