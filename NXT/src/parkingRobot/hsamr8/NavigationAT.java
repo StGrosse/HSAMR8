@@ -1,13 +1,21 @@
 package parkingRobot.hsamr8;
 
+import java.util.ArrayList;
+
 import lejos.geom.Line;
+import lejos.geom.Point;
+import lejos.nxt.Sound;
 import lejos.robotics.navigation.Pose;
 
+
 import parkingRobot.INavigation;
+import parkingRobot.INavigation.ParkingSlot.ParkingSlotStatus;
 import parkingRobot.IPerception;
 import parkingRobot.IMonitor;
 
+
 import parkingRobot.hsamr8.NavigationThread;
+import parkingRobot.hsamr8.GuidanceAT;
 
 
 /**
@@ -95,7 +103,7 @@ public class NavigationAT implements INavigation{
 	/**
 	 * robot specific constant: distance between wheels
 	 */
-	static final double WHEEL_DISTANCE		= 	0.114; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double WHEEL_DISTANCE		= 	0.119; // only rough guess, to be measured exactly and maybe refined by experiments
 
 	
 	/**
@@ -118,12 +126,101 @@ public class NavigationAT implements INavigation{
 	 * pose class containing bundled current X and Y location and corresponding heading angle phi
 	 */
 	Pose pose								= new Pose();
-
+    
+	//Pose lastPose[]=new Pose[5];
+	/**
+	 * pose class containing bundled unprocessed X and Y location and corresponding heading angle phi
+	 */
+	//Pose unprocessedPose = new Pose();
 	/**
 	 * thread started by the 'Navigation' class for background calculating
 	 */
 	NavigationThread navThread = new NavigationThread(this);
 
+	/**
+	 * one line of the map of the robot course. The course consists of a closed chain of straight lines.
+	 * Thus every next line starts where the last line ends and the last line ends where the first line starts.
+	 * This documentation for line0 hold for all lines.
+	 */
+	static Line line0 = new Line(  0,  0, 180,  0);
+	static Line line1 = new Line(180,  0, 180, 60);
+	static Line line2 = new Line(180, 60, 150, 60);
+	static Line line3 = new Line(150, 60, 150, 30);
+	static Line line4 = new Line(150, 30,  30, 30);
+	static Line line5 = new Line( 30, 30,  30, 60);
+	static Line line6 = new Line( 30, 60,   0, 60);
+	static Line line7 = new Line(  0, 60,   0,  0);
+	
+	 static Line linestart = new Line(0,0,0,0);
+	/**
+	 * map of the robot course. The course consists of a closed chain of straight lines.
+	 * Thus every next line starts where the last line ends and the last line ends where the first line starts.
+	 * All above defined lines are bundled in this array and to form the course map.
+	 */
+	//static Line[] map1 = {line0, line1, line2, line3, line4, line5, line6, line7};
+	
+	
+	
+	//Line ReferenceLine;
+	
+	//float currentAngle;
+	int currentLine;
+	//boolean detectionLine=false;
+	//boolean online=false;
+	//boolean parkingStart=false;
+	//boolean detectcorner=false;
+	
+	
+
+	/*
+	 * refines the robot pose from the Mouse Sensor measurment
+	 * 
+	 */
+	//float deltaT_Mau=((float)this.mouseOdoMeasurement.getDeltaT())/1000;
+	//double x_change=this.mouseOdoMeasurement.getUSum();
+	//double y_change=this.mouseOdoMeasurement.getVSum();
+	/*
+	 * parkinSlotsuchen parameter
+	 */
+	INavigation.ParkingSlot ParkingSlot = null;
+	INavigation.ParkingSlot Slots[] = null;
+	int parken_ID; //parkenSlotnumber
+	ArrayList<ParkingSlot> slotList = new ArrayList<ParkingSlot>();
+	boolean detectionStatus=false;
+	boolean parkingSuchen=false;
+	Point backBoundaryPosition = null;
+	Point frontBoundaryPosition = null;
+	int measurementQuality;
+
+	boolean parkenSlotSuch0 = false;
+	boolean parkenSlotSuch1 = false;
+	boolean parkenSlotSuch4 = false;
+	
+	boolean signal=false;
+	
+	double parkenGutLength = 0.02;
+	double parkenGutLength1 = 0.03;//distance from centerl to abstandsensor
+	double parkenGutLength2 = 0.15;
+	
+	double frontparkPosition = 0;
+	double backparkPosition = 0;
+	double parkingSlotLength=0;
+	/*
+	 * the parameter 
+	 */
+	//static final int maxDis=10;
+	private static final double SameSlotDifference = 20;
+	//float lineWinkel=0;
+	/**
+	 * returns the map
+	 */
+	public Line[] getMap() {
+		return map;
+	}
+	
+	// ParkingSlot[] parkingSlotList=new ParkingSlot[20]; 
+	
+	
 	
 	/**
 	 * provides the reference transfer so that the class knows its corresponding perception object (to obtain the measurement
@@ -139,9 +236,21 @@ public class NavigationAT implements INavigation{
 		this.encoderRight = perception.getNavigationRightEncoder();
 		this.mouseodo = perception.getNavigationOdo();		
 		
+		//for(int i=0;i<lastPose.length;i++){
+			//lastPose[i]=new Pose();
+		//}
+
+        // Definition der S[alten der Tabelle der Monitor-Schnittstelle
+		monitor.addNavigationVar("X_wert");
+		monitor.addNavigationVar("Y_wert");
+		monitor.addNavigationVar("Alpha_wert");
+		//monitor.addNavigationVar("Slots");
+		
+		
 		navThread.setPriority(Thread.MAX_PRIORITY - 1);
 		navThread.setDaemon(true); // background thread that is not need to terminate in order for the user program to terminate
 		navThread.start();
+		
 	}
 	
 	
@@ -168,12 +277,19 @@ public class NavigationAT implements INavigation{
 	 */
 	public synchronized void updateNavigation(){	
 		this.updateSensors();
-		this.calculateLocation();
+		//this.calculateLocation_Encoder();
+		//this.calculateLocation_Linesensor();
+		this.calculateLocationLocation();
 		if (this.parkingSlotDetectionIsOn)
 				this.detectParkingSlot();
 		
-		// MONITOR (example)
-//		monitor.writeNavigationComment("Navigation");
+		
+		// MONITOR (example)		
+		//monitor.writeNavigationComment("Navigation");
+		monitor.writeNavigationVar("X_wert", "" +  this.getPose().getX());
+		monitor.writeNavigationVar("Y_wert", "" +  this.getPose().getY());
+		monitor.writeNavigationVar("Alpha_wert", "" +  this.getPose().getHeading());
+		
 	}
 	
 	
@@ -189,7 +305,7 @@ public class NavigationAT implements INavigation{
 	 * @see parkingRobot.INavigation#getParkingSlots()
 	 */
 	public synchronized ParkingSlot[] getParkingSlots() {
-		return null;
+		return Slots;
 	}
 	
 	
@@ -214,9 +330,10 @@ public class NavigationAT implements INavigation{
 	}		 	
 	
 	/**
-	 * calculates the robot pose from the measurements
+	 * calculates the robot pose from the encoder measurements and linesensor
 	 */
-	private void calculateLocation(){
+	private void calculateLocationLocation(){
+		// calculate the robot pose with encoder
 		double leftAngleSpeed 	= this.angleMeasurementLeft.getAngleSum()  / ((double)this.angleMeasurementLeft.getDeltaT()/1000);  //degree/seconds
 		double rightAngleSpeed 	= this.angleMeasurementRight.getAngleSum() / ((double)this.angleMeasurementRight.getDeltaT()/1000); //degree/seconds
 
@@ -235,6 +352,10 @@ public class NavigationAT implements INavigation{
 		
 		double deltaT       = ((double)this.angleMeasurementLeft.getDeltaT())/1000;
 		
+	    //detectline();         //make sure the robot on line
+		//ReferenceLine=whichLine(pose,maxDis);//know which line the robot is on
+		//detectCorner();       // Corner or not 
+		
 		if (R.isNaN()) { //robot don't move
 			xResult			= this.pose.getX();
 			yResult			= this.pose.getY();
@@ -250,16 +371,719 @@ public class NavigationAT implements INavigation{
 			xResult 		= Math.cos(w * deltaT) * (this.pose.getX()-ICCx) - Math.sin(w * deltaT) * (this.pose.getY() - ICCy) + ICCx;
 			yResult 		= Math.sin(w * deltaT) * (this.pose.getX()-ICCx) + Math.cos(w * deltaT) * (this.pose.getY() - ICCy) + ICCy;
 			angleResult 	= this.pose.getHeading() + w * deltaT;
+			if (angleResult >Math.PI * 1.77) {
+				angleResult = 0;
+				xResult = 0.02;
+				yResult = 0.0;
+				currentLine=0;
+			}
 		}
 		
-		this.pose.setLocation((float)xResult, (float)yResult);
-		this.pose.setHeading((float)angleResult);		 
+		/*if(parkingStart ==false){
+			online=true;
+		}
+		else{
+			online=false;
+		}
+		*/
+		
+		/*
+		 * refine the pose 
+		 */
+		//line 0 
+		//if(detectionLine==true)
+		
+		if((this.pose.getHeading() < Math.PI * 0.10)
+			&& (this.pose.getHeading() >- Math.PI * 0.10)){
+		         currentLine=0;
+				
+				if (parkingSlotDetectionIsOn) {
+					//currentLine=0;
+					if ((this.pose.getX() >0.1) 
+							&& (this.pose.getX()<1.65)) {
+						if ((this.pose.getHeading() > Math.PI * 0.01)
+								|| (this.pose.getHeading() < -Math.PI * 0.01)) {
+						//if(Math.abs(this.pose.getHeading())>Math.PI*0.01){
+							angleResult = 0;
+							//Sound.buzz();
+						}
+						
+						if (this.pose.getY() < -0.01) {
+							yResult = 0;
+							//xResult=(float)(this.pose.getX()+x_change);
+							//yResult=(float)(this.pose.getY()+y_change);
+						}
+						if (this.pose.getY() > 0.01) {
+							yResult = 0;
+							//xResult=(float)(this.pose.getX()+x_change);
+							//yResult=(float)(this.pose.getY()+y_change);
+							
+						}
+						
+					}
+						
+						
+							currentLine=0;
+						//Sound.buzz();
+						
+						
+					}
+					
+						currentLine=0;
+					//Sound.buzz();
+				}
+				
+			
+			
+		if(currentLine==0){
+			if ((this.pose.getX() >0.03) 
+					&& (this.pose.getX()<1.65)) {
+				if ((this.pose.getHeading() > Math.PI * 0.01)
+						|| (this.pose.getHeading() < -Math.PI * 0.01)) {
+					angleResult = 0;
+				}
+				if (this.pose.getY() < -0.01) {
+					yResult = 0;
+				}
+				if (this.pose.getY() > 0.01) {
+					yResult = 0;
+				}
+			}
+			
+			currentLine=0;
+		}
+		/*
+		if ((this.pose.getHeading() < Math.PI * 0.12)
+				&& (this.pose.getHeading() > -Math.PI * 0.12)) {
+              currentLine=0;
+			if (parkingSlotDetectionIsOn) {
+				if ((this.pose.getX() >0.05) && (this.pose.getX() <1.6)) {
+					// if (Math.abs(this.lineSensorLeft - this.lineSensorRight)
+					// < 10) {
+					if ((this.pose.getHeading() > Math.PI * 0.01) 
+							|| (this.pose.getHeading() < -Math.PI * 0.01)) {
+						angleResult = 0;
+					}
+					if (this.pose.getY() < -0.01) {
+						yResult = 0;
+					}
+					if (this.pose.getY() > 0.01) {
+						yResult = 0;
+					}
+					
+				}
+				
+			}
+
+			//currentLine = 0;
+
+		}
+		*/
+		/*
+		 * line 1
+		 * about corner
+		 */
+		if ((this.pose.getHeading() >Math.PI * 0.44) && (this.pose.getHeading() < Math.PI * 0.55)
+				&& (currentLine == 0)) {
+			xResult=1.78;
+			angleResult=0.5*Math.PI;
+			//bessern+abweichung
+            currentLine=1;
+			if (parkingSlotDetectionIsOn) {
+				xResult=1.78;
+				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.58)) {
+					if ((this.pose.getHeading() < Math.PI * 0.49) || (this.pose.getHeading() > Math.PI * 0.51)) {
+						//angleResult = Math.PI * 0.5;
+						angleResult=0.5*Math.PI;
+					}
+					if (this.pose.getX() > 1.79) {
+				    xResult = 1.78;
+			      }
+			       if (this.pose.getX() < 1.77) {
+				   xResult = 1.78;
+		         	}
+			        currentLine=1;
+				}
+			
+			
+			}
+			
+		}
+		
+		if (currentLine== 1) {
+            xResult=1.78;
+			currentLine=1;
+			if (parkingSlotDetectionIsOn) {
+				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.45)) {
+					if ((this.pose.getHeading() < Math.PI * 0.49) || (this.pose.getHeading() >Math.PI * 0.51)) {
+						angleResult =0.5*Math.PI;
+					}
+					if (this.pose.getX() >1.79) {
+						xResult = 1.78;
+					}
+					if (this.pose.getX() <1.77) {
+						xResult = 1.78;
+
+					}
+					
+				}
+				currentLine = 1;
+			}
+
+			
+
+		}
+		/*
+		 * line 2
+		 */
+
+		if ((this.pose.getHeading() > Math.PI * 0.85) && (this.pose.getHeading() < Math.PI * 1.10)
+				&& (currentLine== 1)) {
+			yResult = 0.60;
+			angleResult = Math.PI;
+			currentLine = 2;
+			if (parkingSlotDetectionIsOn) {
+				yResult=0.6;
+				if ((this.pose.getX() < 1.77) && (this.pose.getX() >1.51)) {
+					if ((this.pose.getHeading()<Math.PI * 0.99) || (this.pose.getHeading() >Math.PI * 1.01)) {
+						angleResult = Math.PI;
+					}
+					if (this.pose.getY() < 0.59) {
+						yResult = 0.6;
+					}
+					if (this.pose.getY() > 0.61) {
+						yResult = 0.6;
+					}
+					
+				}
+				currentLine = 2;
+			}
+
+		}
+		if (currentLine == 2) {
+              currentLine=2;
+			if (parkingSlotDetectionIsOn) {
+				//if ((this.pose.getX() < 1.77) && (this.pose.getX() >1.51)) {
+					if ((this.pose.getHeading()<Math.PI * 0.99) || (this.pose.getHeading() >Math.PI * 1.01)) {
+						angleResult = Math.PI;
+					}
+					if (this.pose.getY() < 0.59) {
+						yResult = 0.6;
+					}
+					if (this.pose.getY() > 0.61) {
+						yResult = 0.6;
+					}
+					
+				//}
+				currentLine = 2;
+			}
+	
+			currentLine=2;
+
+		}
+		/*
+		 * line 3
+		 */
+
+		if ((this.pose.getHeading() > Math.PI * 1.40) && (this.pose.getHeading() < Math.PI * 1.60)
+				 && (currentLine == 2)) {
+
+			xResult = 1.50;
+			angleResult = Math.PI * 1.5;
+			currentLine = 3;
+			if (parkingSlotDetectionIsOn) {
+				//if ((this.pose.getY() > 0.35) && (this.pose.getY() < 0.55)) {
+				  angleResult = Math.PI * 1.5;
+				  currentLine=3;
+					if ((this.pose.getHeading() < Math.PI * 1.49) || (this.pose.getHeading() >Math.PI * 1.51)) {
+						angleResult = Math.PI * 1.5;
+					}
+					if (this.pose.getX() > 1.51) {
+						xResult = 1.50;
+					}
+					if (this.pose.getX() < 1.49) {
+						xResult = 1.50;
+					}
+					if(this.pose.getY()<0.3){
+						yResult=0.3;
+					}
+					
+				//}
+				
+				}
+			}
+		if (currentLine == 3) {
+			//
+			currentLine=3;
+			if (parkingSlotDetectionIsOn) {
+				    currentLine=3;
+				//if ((this.pose.getY() > 0.35) && (this.pose.getY() < 0.55)) {
+					if ((this.pose.getHeading() < Math.PI * 1.49) || (this.pose.getHeading() >Math.PI * 1.51)) {
+						angleResult = Math.PI * 1.5;
+					}
+					if (this.pose.getX() > 1.51) {
+						xResult = 1.50;
+					}
+					if (this.pose.getX() < 1.49) {
+						xResult = 1.50;
+					}
+					
+				//}
+				if(this.pose.getY()<0.3){
+					yResult=0.3;
+				}
+			}
+			
+		
+		}
+		/*
+		 * line 4
+		 */
+		if ((this.pose.getHeading() > Math.PI * 0.8) && (this.pose.getHeading() < Math.PI * 1.25)
+			 && (currentLine == 3)) {
+			  currentLine=4;
+			  yResult=0.30;
+			  angleResult=Math.PI;
+			  
+			if (parkingSlotDetectionIsOn) {
+				yResult=0.3;
+				angleResult=Math.PI;
+				currentLine=4;
+				if ((this.pose.getX() <1.5) && (this.pose.getX() >0.35)) {
+			
+					if ((this.pose.getHeading() < Math.PI * 0.99) || (this.pose.getHeading() > Math.PI * 1.01)) {
+						angleResult = Math.PI;
+					}
+				if (this.pose.getY() < 0.29) {
+					yResult = 0.30;
+				}
+				if (this.pose.getY() > 0.31) {
+					yResult = 0.30;
+
+				}
+				
+			  }
+				currentLine = 4;
+			}
+	
+			
+		}
+		//Linien 4 noch Problem(Y(cm))
+		if (currentLine == 4) {
+              currentLine=4;
+              angleResult=Math.PI;
+               yResult=0.3;
+			if (parkingSlotDetectionIsOn) {
+				yResult=0.3;
+				if ((this.pose.getX() <1.55) && (this.pose.getX() >0.35)) {
+					yResult=0.3;//test
+					if ((this.pose.getHeading() < Math.PI * 0.99) 
+							|| (this.pose.getHeading()> Math.PI * 1.01)) {
+						    angleResult = Math.PI;
+					}   
+					if (this.pose.getY() < 0.29) {
+							yResult = 0.30;
+					}
+					if (this.pose.getY() > 0.31) {
+						    yResult = 0.30;
+				     }
+				}
+				if(this.pose.getX()<0.3){
+					xResult=0.3;
+					yResult=0.3;
+				}
+
+               currentLine = 4;
+			}
+
+		}
+		/*
+		 * line 5
+		 */
+
+		if ((this.pose.getHeading()> Math.PI * 0.40) && (this.pose.getHeading() <Math.PI * 0.60)
+				 && (currentLine== 4)) {
+            xResult=0.3;
+			currentLine = 5;
+			angleResult=0.5*Math.PI;
+			if (parkingSlotDetectionIsOn) {
+              
+				if ((this.pose.getY() > 0.35) && (this.pose.getY() < 0.50)) {
+					if ((this.pose.getHeading() > Math.PI * 0.51) || (this.pose.getHeading()< Math.PI * 0.49)){
+						angleResult = Math.PI*0.5;
+					}
+				
+					if (this.pose.getX() > 0.31) {
+						xResult = 0.3;
+					}
+					if (this.pose.getX() < 0.29) {
+						xResult = 0.3;
+					}
+				}
+				currentLine = 5;
+			}
+		}
+		if (currentLine == 5) {
+
+			if (parkingSlotDetectionIsOn) {
+                 currentLine=5;
+				if ((this.pose.getY() > 0.35) && (this.pose.getY() < 0.50)) {
+					if ((this.pose.getHeading() > Math.PI * 0.51) || (this.pose.getHeading()< Math.PI * 0.49)){
+						angleResult = Math.PI*0.5;
+					}
+				
+					if (this.pose.getX() > 0.31) {
+						xResult = 0.3;
+					}
+					if (this.pose.getX() < 0.29) {
+						xResult = 0.3;
+					}
+				}
+				currentLine = 5;
+			}
+
+		
+		}
+		/*
+		 * line 6
+		 */
+		if ((this.pose.getHeading() > Math.PI * 0.90) && (this.pose.getHeading() <Math.PI * 1.10)
+				 && (currentLine== 5)) {
+			yResult=0.6;
+			angleResult=Math.PI;
+			currentLine = 6;
+			if (parkingSlotDetectionIsOn) {
+				if ((this.pose.getX() <0.25) && (this.pose.getX() >0.10)) {
+					if ((this.pose.getHeading() > Math.PI *1.10) || (this.pose.getHeading()< Math.PI * 0.90)){
+						angleResult = Math.PI;
+					}
+					if (this.pose.getY() < 0.59) {
+						yResult = 0.6;
+					}
+
+					if (this.pose.getY() > 0.61) {
+						yResult = 0.6;
+					}
+				}
+			
+                 currentLine = 6;
+			}
+		}
+		if (currentLine == 6) {
+			  currentLine = 6;
+			  yResult=0.6;
+			if (parkingSlotDetectionIsOn) {
+				if ((this.pose.getX() <0.25) && (this.pose.getX() >0.10)) {
+					if ((this.pose.getHeading() > Math.PI *1.10) || (this.pose.getHeading()< Math.PI * 0.90)){
+						angleResult = Math.PI;
+					}
+					if (this.pose.getY() < 0.59) {
+						yResult = 0.6;
+					}
+
+					if (this.pose.getY() > 0.61) {
+						yResult = 0.6;
+					}
+				}
+			
+                 currentLine = 6;
+			}
+
+		
+		}
+		/*
+		 * line 7
+		 */
+
+		if ((this.pose.getHeading() >Math.PI * 1.40) && (this.pose.getHeading() <Math.PI * 1.60)
+			 && (currentLine == 6)) {
+             currentLine=7;
+             angleResult=1.5*Math.PI;
+             xResult=0;
+			
+			if (parkingSlotDetectionIsOn) {
+				currentLine=7;
+				xResult=0;
+				angleResult=1.5*Math.PI;
+				//if ((this.pose.getY() > 0.10) && (this.pose.getY() < 0.58)) {
+					if ((this.pose.getHeading() < Math.PI * 1.49) 
+							|| (this.pose.getHeading() > Math.PI * 1.51)) {
+						angleResult = Math.PI * 1.5;
+					}
+				
+				if (this.pose.getX() < -0.01) {
+					xResult = 0;
+				}
+
+				if (this.pose.getX() > 0.01) {
+					xResult = 0;
+				}
+				currentLine = 7;
+			}
+			//}
+			
+		}
+		if ((this.pose.getHeading() >Math.PI * 1.40) && (this.pose.getHeading() <Math.PI * 1.60)
+				&& (this.pose.getX() >0.15) && (currentLine== 7)) {
+			
+			if (parkingSlotDetectionIsOn) {
+					if ((this.pose.getHeading() < Math.PI * 1.49) || (this.pose.getHeading() > Math.PI * 1.51)) {
+						angleResult = Math.PI * 1.5;
+					}
+				
+				if (this.pose.getX() < -0.01) {
+					xResult = 0;
+				}
+
+				if (this.pose.getX() > 0.01) {
+					xResult = 0;
+				}
+			//}
+
+			currentLine = 7;
+			}
+		}
+		
+		this.pose.setLocation((float) xResult, (float) yResult);
+		this.pose.setHeading((float) angleResult);
+		
+		//this.monitor.writeNavigationComment("x_wert"+this.pose.getX());
+		//this.monitor.writeNavigationComment("y_wert"+this.pose.getY());
+		//this.monitor.writeNavigationComment("alpha_wert"+this.pose.getHeading());
+		
 	}
 
+		
+		//if((detectionLine==true)&&(online==true)){
+			//if(detectcorner==true)
+
+	
+
+/*
+ * Returns the square of the distance from a point to a line segment.
+ *  The distance measured is the distance between the specified point and 
+ *  the closest point between the specified end points. 
+ *  If the specified point intersects the line segment in between the end points, this method returns 0.0.
+ */
+	@SuppressWarnings("unused")
+	private static float ptSegDistSq(Line l, float px, float py){
+		
+		float x1= (float)l.getX1();
+		float x2= (float)l.getX2();
+		float y1= (float)l.getY1();
+		float y2 =(float)l.getY2();
+		x2-=x1;
+		y2-=y1;
+		px-=x1;
+		py-=y1;
+	    float dist;
+		if (px * x2 + py * y2 <= 0.0) { // P*A
+		        dist = px * px + py * py;
+		    } else {
+		        px = x2 - px; // P = A - P = (x2 - px, y2 - py)
+		        py = y2 - py;
+		        if (px * x2 + py * y2 <= 0.0) { // P*A
+		            dist = px * px + py * py;
+		        } else {
+		            dist = px * y2 - py * x2;
+		            dist = dist * dist / (x2 * x2 + y2 * y2); // pxA/|A|
+		        }
+		    }
+		    if (dist < 0) {
+		        dist = 0;
+		    }
+		    return dist;
+	}
+	
+	
+
+
+
+
+	@SuppressWarnings("unused")
+	/*
+	private void detectline() {
+		if((this.lineSensorLeft==2) || (this.lineSensorRight==2)){
+			detectionLine=true;
+		}else{
+			detectionLine=false;
+		}
+	}
+	*/
+	
+	/*
+	 * detects a corner
+	 */
+	/*
+	@SuppressWarnings("unused")
+	private void detectCorner(){
+		if((Math.abs(this.pose.getHeading()-lineWinkel)>0.27*Math.PI)
+				&&((Math.abs(this.pose.getHeading()-lineWinkel)<(0.6*Math.PI)))){
+					detectcorner=true;
+				}
+		else{
+			        detectcorner=false;
+		}
+	}
+	
+	*/
+	 
 	/**
-	 * detects parking slots and manage them by initializing new slots, re-characterizing old slots or merge old and detected slots. 
+	 * 	detects parking slots and manage them by initializing new slots, re-characterizing old slots or merge old and detected slots. 
 	 */
 	private void detectParkingSlot(){
-		return; // has to be implemented by students
-	}
+		
+			switch (currentLine) {
+			case 0:
+				if (this.pose.getX() <1.70) {
+					if ((parkenSlotSuch0 == false) && (this.frontSideSensorDistance > 300)) {
+						backBoundaryPosition = new Point((float) (this.pose.getX() + parkenGutLength1), this.pose.getY());
+						//backBoundaryPosition = new Point(this.pose.getX()+parkenGutLength1, this.pose.getY());
+						//parkenSlotSuch0 = true;
+						if(this.pose.getHeading()<0.1*Math.PI&&this.pose.getHeading()>-0.1*Math.PI){
+							measurementQuality=5;//gut measurment
+							parkenSlotSuch0 = true;
+						}
+						else{
+							measurementQuality=1;
+							parkenSlotSuch0 = false;
+						}
+
+					}
+					if ((parkenSlotSuch0 == true) && (this.frontSideSensorDistance < 180)) {
+						//frontBoundaryPosition = new Point((float) (this.pose.getX() - parkenGutLength1),
+						frontBoundaryPosition =new Point((float) (this.pose.getX() + parkenGutLength1), this.pose.getY());
+						parkenSlotSuch0 = false;
+						signal = true;
+
+					}
+				}
+				break;
+			case 1:
+				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.56)) {
+					if ((parkenSlotSuch0 == false) && (this.frontSideSensorDistance > 300)) {
+						backBoundaryPosition = new Point(this.pose.getX(), (float) (this.pose.getY() +parkenGutLength1));
+					    //parkenSlotSuch1= true;
+						if(this.pose.getHeading()<0.44*Math.PI&&this.pose.getHeading()>0.55*Math.PI){
+							measurementQuality=5;//gut measurment
+							parkenSlotSuch1 = true;
+						}
+						else{
+							measurementQuality=1;
+							parkenSlotSuch1 = false;
+					}
+				}
+					if ((parkenSlotSuch1 == true) && (this.frontSideSensorDistance < 200)) {
+						frontBoundaryPosition = new Point(this.pose.getX(),(float) (this.pose.getY() +parkenGutLength1));
+						//frontBoundaryPosition = new Point(this.pose.getX(),this.pose.getY());
+						parkenSlotSuch1 = false;
+						signal = true;
+					}
+				}
+				break;
+			
+			case 4:
+				if ((this.pose.getX() <1.27) && (this.pose.getX() >0.53)) {
+					if ((parkenSlotSuch4 == false) && (this.frontSideSensorDistance > 300)) {
+						
+						backBoundaryPosition = new Point((float) (this.pose.getX() -parkenGutLength1), this.pose.getY());
+						//backBoundaryPosition = new Point(this.pose.getX() , this.pose.getY());
+						//parkenSlotSuch4 = true;
+						if(this.pose.getHeading()<1.05*Math.PI&&this.pose.getHeading()>-1.05*Math.PI){
+							measurementQuality=5;//gut measurment
+							parkenSlotSuch0 = true;
+						}
+						else{
+							measurementQuality=1; //bad measurment
+							parkenSlotSuch0 = false;
+					}
+				}
+					if ((parkenSlotSuch4 == true) && (this.frontSideSensorDistance < 180)) {
+					
+						frontBoundaryPosition =new Point((float) (this.pose.getX() -parkenGutLength1), this.pose.getY());
+						parkenSlotSuch4= false;
+						signal = true;
+					}
+				}
+				break;
+			}
+
+			if (signal == true) {
+				if ((this.frontBoundaryPosition != null) && (this.backBoundaryPosition != null)) {
+					frontparkPosition = Math.abs(this.frontBoundaryPosition.getX()) + this.frontBoundaryPosition.getY();
+					backparkPosition = Math.abs(this.backBoundaryPosition.getX()) + this.frontBoundaryPosition.getY();
+					//frontparkPosition = Math.abs(this.frontBoundaryPosition.getX());
+					//backparkPosition = Math.abs(this.backBoundaryPosition.getX());
+					parkingSlotLength = frontparkPosition - backparkPosition;
+					parken_ID++;
+				}
+
+				if (parkingSlotLength>= 0.45) {
+					ParkingSlotStatus status = ParkingSlotStatus.GOOD;
+					ParkingSlot getParkingSlots = new ParkingSlot(parken_ID, backBoundaryPosition,
+							frontBoundaryPosition,status,measurementQuality);
+					
+					slotList.add(getParkingSlots);
+					Slots = new ParkingSlot[slotList.size()];
+					Slots = slotList.toArray(Slots);  //create a new array
+					//if the two Slots are same->remove 
+				//	for(int i=0;i<Slots.length;i++){
+					//	if(sameSlot(Slots[i],Slots[Slots.length-1])){
+						//	slotList.remove(i);
+							//i--;
+						 //}
+					
+				
+					
+				
+
+				} else if ((parkingSlotLength > 0) && (parkingSlotLength < 0.45)) {
+					ParkingSlotStatus status = ParkingSlotStatus.BAD;
+					ParkingSlot getParkingSlots = new ParkingSlot(parken_ID, backBoundaryPosition,
+							frontBoundaryPosition,status, measurementQuality);
+				
+					slotList.add(getParkingSlots);
+					Slots = new ParkingSlot[slotList.size()];
+					Slots = slotList.toArray(Slots);
+				//	for(int i=0;i<Slots.length;i++){
+					//	if(sameSlot(Slots[i],Slots[Slots.length-1])){
+						//	slotList.remove(i);
+							//i--;
+					//}
+						}
+						
+				 else {
+					ParkingSlotStatus status = ParkingSlotStatus.RESCAN;
+					ParkingSlot getParkingSlots = new ParkingSlot(parken_ID, backBoundaryPosition,
+							frontBoundaryPosition,status, measurementQuality);
+					parken_ID--;
+				}
+				signal = false;
+				this.backBoundaryPosition = null;
+				this.frontBoundaryPosition = null;
+			}
+			
+			//this.monitor.writeNavigationComment("Slots"+this.Slots);
+			return; // has to be implemented by students
+			
+			
+		
+ }
+	
+			/*
+			 * whether two parkenSlots are same or not
+			 * @return true: the two slots are same ,false: the two slots are false
+			 */
+			public boolean sameSlot(ParkingSlot x, ParkingSlot y){
+				if((Math.abs((x.getBackBoundaryPosition().getX())-
+						y.getBackBoundaryPosition().getY())<SameSlotDifference)
+						||((Math.abs(x.getFrontBoundaryPosition().getX())-
+								y.getFrontBoundaryPosition().getY())<SameSlotDifference)){
+					return true;
+				}
+				   return false;
+			}
+	
+	
 }
+

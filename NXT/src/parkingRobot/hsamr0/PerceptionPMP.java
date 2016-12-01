@@ -129,8 +129,8 @@ public class PerceptionPMP implements IPerception {
 		LCD.drawString("wenn position.", 0, 3);
 		LCD.drawString("Enter Druecken", 0, 4);
 		while(!Button.ENTER.isDown()){
-			LCD.drawString("Sensorwert r:"+ (this.RightLineSensor), 0, 6);
-			LCD.drawString("Sensorwert l:"+ (this.LeftLineSensor), 0, 7);
+			//LCD.drawString("Sensorwert r:"+ (this.RightLineSensor), 0, 6);
+			//LCD.drawString("Sensorwert l:"+ (this.LeftLineSensor), 0, 7);
 			updateSensors();
 		}
 		Button.ENTER.waitForPressAndRelease();
