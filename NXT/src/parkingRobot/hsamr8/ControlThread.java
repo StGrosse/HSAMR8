@@ -14,8 +14,6 @@ public class ControlThread extends Thread {
 	 * 
 	 */
 	IControl control;
-	
-	
 	/**
 	 * 
 	 * 

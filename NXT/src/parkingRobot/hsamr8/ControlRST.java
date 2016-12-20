@@ -8,6 +8,7 @@ import parkingRobot.IMonitor;
 import parkingRobot.IPerception;
 import parkingRobot.IPerception.*;
 import lejos.nxt.NXTMotor;
+import lejos.nxt.Sound;
 import parkingRobot.INavigation;
 //import lejos.nxt.Sound;
 import java.lang.Math;
@@ -36,16 +37,16 @@ public class ControlRST implements IControl {
 	static final double r_wheel = 2.7; 						//radius of the wheels in cm
 	static final double distPerTurn = 2*Math.PI*r_wheel; 	//distance per wheel turn in cm
 	static final double distPerDeg = distPerTurn/360; 		//distance per degree in cm
-	static final double angVelPerPercentR = 8.1; 			//slope of v=f(power) (left wheel)@u=7.3V
-	static final double angVelPerPercentL = 8.0;			//slope of v=f(power) (right wheel)@u=7.3V
-	static final double offsetAngVelPerPercentL = -57.4; 	//offset of v=f(power) (left wheel)@u=7.3V
-	static final double offsetAngVelPerPercentR = -67.6; 	//offset of v=f(power) (right wheel)@u=7.3V
+	static final double angVelPerPercentR = 8.7; 			//slope of v=f(power) (left wheel)@u=8V
+	static final double angVelPerPercentL = 8.5;			//slope of v=f(power) (right wheel)@u=8V
+	static final double offsetAngVelPerPercentL = -80.0; 	//offset of v=f(power) (left wheel)@u=8V
+	static final double offsetAngVelPerPercentR = -80.0; 	//offset of v=f(power) (right wheel)@u=8V
 	//static final int akku_max = 0;							//maximum voltage of akku in mV
 	
 	//parameter for exec_LINECTRL_ALGO_opt2
-	static final double kp = 0.0601; //Proportionalbeiwert PID Linefollower
-	static final double ki = 0.0082; //Integrierbeiwert PID Linefollower
-	static final double kd = 0.095; //Differentierbeiwert PID Linefollower
+	static final double kp = 0.003; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
+	static final double ki = 0.000; //Integrierbeiwert PID Linefollower absolut:0.0082, neu:0.000
+	static final double kd = 0.02; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
 	
 	//global variables for exec_LINECTRL_ALGO_opt2
 	int v=0;	
@@ -71,6 +72,7 @@ public class ControlRST implements IControl {
 	int u_old_r=0;			//last power of right motor
 	LinkedList<Double> fehler = new LinkedList<>(); //list of last errors in order to calculate floating average
 	LinkedList<Double> geschw = new LinkedList<>(); //list of last powers in order to calculate floating average
+	boolean newVW=true;
 	
 	//global variables for example sequence:
 	int phase=1;			//phase of example sequence
@@ -88,6 +90,8 @@ public class ControlRST implements IControl {
 	int z鋒ler =0;
 	int power=10;
 	int lock =25;
+	
+	boolean nearCurve=true;
 	/**
 	 * reference to {@link IPerception.EncoderSensor} class for left robot wheel which measures the wheels angle difference
 	 * between actual an last request
@@ -159,8 +163,8 @@ public class ControlRST implements IControl {
 	 * @param rightMotor corresponding NXTMotor object
 	 */
 	public ControlRST(IPerception perception, INavigation navigation, NXTMotor leftMotor, NXTMotor rightMotor, IMonitor monitor){
-		for(int i=0;i<=9;i++)fehler.add(0.0);
-		for(int i=0;i<=9;i++)geschw.add(0.0);
+		//for(int i=0;i<=9;i++)fehler.add(0.0);
+		//for(int i=0;i<=9;i++)geschw.add(0.0);
 		
 		this.perception = perception;
         this.navigation = navigation;
@@ -257,9 +261,7 @@ public class ControlRST implements IControl {
 	 * @see parkingRobot.IControl#exec_CTRL_ALGO()
 	 */
 	public void exec_CTRL_ALGO(){
-		this.angleMeasurementLeft=this.encoderLeft.getEncoderMeasurement();
-		this.angleMeasurementRight=this.encoderRight.getEncoderMeasurement();
-		
+	
 		switch (currentCTRLMODE)
 		{
 		  case LINE_CTRL	: update_LINECTRL_Parameter();
@@ -280,13 +282,24 @@ public class ControlRST implements IControl {
 
 	}
 	
+	public void innerLoop(){
+		update_VWCTRL_Parameter();
+		exec_VWCTRL_ALGO();
+	}
+	
 	// Private methods
 	
 	/**
 	 * update parameters during VW Control Mode
 	 */
 	private void update_VWCTRL_Parameter(){
-		setPose(navigation.getPose());
+		this.angleMeasurementLeft=this.encoderLeft.getEncoderMeasurement();
+		this.angleMeasurementRight=this.encoderRight.getEncoderMeasurement();
+		encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();	//driven angle since last reset (left wheel)
+		encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
+		encoderSumL+=this.angleMeasurementLeft.getAngleSum();
+		encoderSumR+=this.angleMeasurementRight.getAngleSum();
+		//this.monitor.writeControlComment("deltaT:"+this.angleMeasurementLeft.getDeltaT());
 	}
 	
 	/**
@@ -309,6 +322,7 @@ public class ControlRST implements IControl {
 	 * uses {@link}perception.getRightLineSensorValue() if{@link}option =2 or 6
 	 */
 	private void update_LINECTRL_Parameter(){
+		this.currentPosition=navigation.getPose();
 		if(option == 1){
 			this.lineSensorRight		= perception.getRightLineSensor();
 			this.lineSensorLeft  		= perception.getLeftLineSensor();
@@ -334,32 +348,42 @@ public class ControlRST implements IControl {
 	 * optionally one of them could be set to zero for simple test.
 	 */
     private void exec_VWCTRL_ALGO(){
+    	monitor.writeControlComment("VW aufgerufen "+this.velocity+" "+this.angularVelocity);
     	leftMotor.forward();
     	rightMotor.forward();
     	double kp_l=0.031;
-    	double ki_l=0.00075;
-    	double kd_l=0.015;
+    	double ki_l=0.00075;//bei TA=100: 0.00075
+    	double kd_l=0.015;//bei TA=100:0.015
     	double kp_r=0.031;
     	double ki_r=0.00075;
-    	double kd_r=0.016;
+    	double kd_r=0.016;//bei TA=100:0.016
     	
 		double [] speed = this.drive(this.velocity, this.angularVelocity); //berechne ben鰐igte Winkelgeschwindigkeiten
-		//zu Testzwecken manuelles setzen der Radgeschwindigkeiten:
-		//speed[0]=240;
-		//speed[1]=0;
 		this.monitor.writeControlComment("Zielgeschwindigkeit: "+speed[1]);
+		int steuerL;
+		int steuerR;
 		//Steuerung der Motoren (ohne Regelung) auf Basis von experimentell bestimmter Proportionalit鋞skonstante
-		//int steuerL = (int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL); //mit w_wheel=angVelPerPercent*power+offsetAngVelPerPercent (lineare N鋒erung)
-		//int steuerR = (int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR);
+		if(curve!=dest.no){
+		steuerL = (int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL); //mit w_wheel=angVelPerPercent*power+offsetAngVelPerPercent (lineare N鋒erung)
+		steuerR = (int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR);
+		}
 		//this.monitor.writeControlComment("links: "+(int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL)+" rechts: "+(int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR));
-		//if(this.u_old_l==0)u_old_l=steuerL;
-		//if(this.u_old_r==0)u_old_r=steuerR;
+		else{
+			steuerL=10;
+			steuerR=10;
+		}
 		
+		if(this.newVW){
+			u_old_l=steuerL;
+			u_old_r=steuerR;
+			this.newVW=false;
+		}	
 		//Berechnung der aktuellen Geschwindigkeit und Winkelgeschwindigkeit aus Daten der Rad-Encoder:
 		//Winkelgeschwindigkeit linkes Rad in Grad/sec
 		double w_akt_l=(double)(this.angleMeasurementLeft.getAngleSum())/(double)(this.angleMeasurementLeft.getDeltaT()/1000.0);
 		//Winkelgeschwindigkeit rechtes Rad in Grad/sec
 		double w_akt_r=(double)(this.angleMeasurementRight.getAngleSum())/(double)(this.angleMeasurementRight.getDeltaT()/1000.0);	
+		//monitor.writeControlComment("deltaT:"+this.angleMeasurementLeft.getDeltaT());
 		
 		//Regelung der Motoren mit PID-Regler
 		double e_l = speed[0]-w_akt_l;//Fehler links in Grad/sec
@@ -371,20 +395,20 @@ public class ControlRST implements IControl {
 		//Berechnung der Stellgr鲞en (Pulsweite)
 		double u_l = kp_l*e_l+ki_l*this.esuml_vw+kd_l*(e_l-this.eoldl_vw);
 		double u_r = kp_r*e_r+ki_r*this.esumr_vw+kd_r*(e_r-this.eoldr_vw);
-		double pw_l=u_old_l+u_l;
-		double pw_r=u_old_r+u_r;
+		double pw_l=Math.abs(u_old_l+u_l)>80?80:u_old_l+u_l;
+		double pw_r=Math.abs(u_old_r+u_r)>80?80:u_old_r+u_r;
 		u_old_l=(int)pw_l;
 		u_old_r=(int)pw_r;
-		fehler.add(0, e_r);
-		geschw.add(0,w_akt_r);
-		geschw.remove(geschw.size()-1);
-		fehler.remove(fehler.size()-1);
-		double mw=0;
-		double mw2=0;
-		for(double a:fehler)mw+=a;
-		for(double b:geschw)mw2+=b;
-		mw/=(fehler.size());
-		mw2/=(geschw.size());
+		//fehler.add(0, e_r);
+		//geschw.add(0,w_akt_r);
+		//geschw.remove(geschw.size()-1);
+		//fehler.remove(fehler.size()-1);
+		//double mw=0;
+		//double mw2=0;
+		//for(double a:fehler)mw+=a;
+		//for(double b:geschw)mw2+=b;
+		//mw/=(fehler.size());
+		//mw2/=(geschw.size());
 		
 		this.eoldl_vw=e_l;
 		this.eoldr_vw=e_r;
@@ -400,6 +424,7 @@ public class ControlRST implements IControl {
 		//monitor.writeControlVar("PWRechts",""+(int)pw_r);
 		
 		//Ansteuerung der Motoren
+		monitor.writeControlComment("pulsweite links:"+pw_l);
 		leftMotor.setPower((int)pw_l);
 		rightMotor.setPower((int)pw_r);
 		
@@ -431,7 +456,7 @@ public class ControlRST implements IControl {
     	else if (option == 3) {
     		this.setAngularVelocity(Math.PI/2); //winkelgeschwindigkeit in 1/s
     		this.setVelocity(0.0); //Geschwindigkeit in m/s
-    		exec_VWCTRL_ALGO();    		
+    		//exec_VWCTRL_ALGO();    		
     	}
     	else if(option==4){
     		this.calcAngVelPerPercent();
@@ -441,11 +466,11 @@ public class ControlRST implements IControl {
     	}
     	else if(option==6){
     		if(this.phase==1){
-    			this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
-    			this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
+    			//this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
+    			//this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
     			this.setVelocity(0.1);
     			this.setAngularVelocity(0.0);
-    			this.exec_VWCTRL_ALGO();
+    			//this.exec_VWCTRL_ALGO();
     			if((((double)encoderSumSeqL+ (double)encoderSumSeqR )/2*distPerDeg)>=150){
     				this.phase=2;
     				this.encoderSumSeqL=0;
@@ -456,11 +481,11 @@ public class ControlRST implements IControl {
     			}   			
     		}
     		else if(this.phase==2){
-    			this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
-    			this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
+    			//this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
+    			//this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
     			this.setVelocity(0.0);
     			this.setAngularVelocity(Math.PI/12);
-    			this.exec_VWCTRL_ALGO();
+    			//this.exec_VWCTRL_ALGO();
     			if(((Math.abs((double)encoderSumSeqL)+(double)encoderSumSeqR)/2)>=r_robot/r_wheel*90){
     				this.phase=3;
     				this.encoderSumSeqL=0;
@@ -470,11 +495,11 @@ public class ControlRST implements IControl {
     			}
     		}
     		else if(this.phase==3){
-    			this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
-    			this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
+    			//this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
+    			//this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
     			this.setVelocity(0.05);
     			this.setAngularVelocity(0.0);
-    			this.exec_VWCTRL_ALGO();
+    			//this.exec_VWCTRL_ALGO();
     			if((((double)encoderSumSeqL+ (double)encoderSumSeqR )/2*distPerDeg)>=30){
     				this.phase=4;
     				this.encoderSumSeqL=0;
@@ -484,11 +509,11 @@ public class ControlRST implements IControl {
     			}
     		}
     		else if(this.phase==4){
-    			this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
-    			this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
+    			//this.encoderSumSeqL+=this.angleMeasurementLeft.getAngleSum();
+    			//this.encoderSumSeqR+=this.angleMeasurementRight.getAngleSum();
     			this.setVelocity(0.0);
     			this.setAngularVelocity(Math.PI/6);
-    			this.exec_VWCTRL_ALGO();
+    			//this.exec_VWCTRL_ALGO();
     			if(((Math.abs((double)encoderSumSeqL)+(double)encoderSumSeqR)/2)>=r_robot/r_wheel*90){
     				this.phase=5;
     				//this.option=2;
@@ -609,9 +634,15 @@ public class ControlRST implements IControl {
 	 */
 	
 	private void exec_LINECTRL_ALGO_opt2(){
-		leftMotor.forward();
-		rightMotor.forward();
-		
+		this.monitor.writeControlComment("Linectrl aufgerufen");
+		//leftMotor.forward();
+		//rightMotor.forward();
+		if(nearCurve() == dest.no){
+			this.setVelocity(0.20);
+		}
+		else{
+			this.setVelocity(0.15);
+		}
 		int e = this.lineSensorLeft - this.lineSensorRight; //Berechne Fehler aus Differenz der Werte --> w = 0
 		
 		if(curve == dest.stop){
@@ -625,30 +656,32 @@ public class ControlRST implements IControl {
 		}
 		else{
 		//Kurvendetektion, funktioniert stellenweise schon gut
-		if(lock<=0){		
-			if (((e-eold)<=-35) && (this.lineSensorLeft<=50)/* && (this.lineSensorRight>=50)*/){
-				this.curve=dest.right;
+		if((nearCurve()!=dest.no) && lock<=0){		
+			if (((e-eold)<=-35) && (this.lineSensorLeft<=50) && (this.lineSensorRight>=50)){
+				this.curve=nearCurve();
 				this.encoderSumL=0;
 				this.encoderSumR=0;
 				this.straight=true;
+				this.resetVW();
 				this.curveAlgo2();
 				monitor.writeControlVar("Fehler","" + e);
-				monitor.writeControlVar("LeftMotor", "0");
-				monitor.writeControlVar("RightMotor","0");
+				//monitor.writeControlVar("LeftMotor", "0");
+				//monitor.writeControlVar("RightMotor","0");
 				monitor.writeControlVar("LeftSensor","" + this.lineSensorLeft);
 				monitor.writeControlVar("RightSensor","" + this.lineSensorRight);
 				return;
 			}
 	
-			if (((e-eold)>=35) /*&& (this.lineSensorLeft>=50)*/ && (this.lineSensorRight<=50)){
-				curve=dest.left;
+			if (((e-eold)>=35) && (this.lineSensorLeft>=50) && (this.lineSensorRight<=50)){
+				this.curve=nearCurve();
 				this.encoderSumL=0;
 				this.encoderSumR=0;
 				this.straight=true;
+				this.resetVW();
 				this.curveAlgo2();
 				monitor.writeControlVar("Fehler","" + e);
-				monitor.writeControlVar("LeftMotor", "0");
-				monitor.writeControlVar("RightMotor","0");
+				//monitor.writeControlVar("LeftMotor", "0");
+				//monitor.writeControlVar("RightMotor","0");
 				monitor.writeControlVar("LeftSensor","" + this.lineSensorLeft);
 				monitor.writeControlVar("RightSensor","" + this.lineSensorRight);
 				return;
@@ -656,18 +689,20 @@ public class ControlRST implements IControl {
 		}
 				
 		if(e<=10)esum_line=0;
-		int u_r = (int)(kp*e + ki*esum_line+kd*(e-this.eold));
-		int a = u_r_max + u_r;
-		int b = u_r_max - u_r;
+		double u_r = (kp*e + ki*esum_line+kd*(e-this.eold));
+		this.setAngularVelocity(-u_r);
+		this.innerLoop();
+		//int a = u_r_max + u_r;
+		//int b = u_r_max - u_r;
 		/*this.monitor.writeControlComment("u_r_l: "+ a);
 		this.monitor.writeControlComment("u_r_r: "+ b);*/
-		this.leftMotor.setPower(a);
-		this.rightMotor.setPower(b);
+		//this.leftMotor.setPower(a);
+		//this.rightMotor.setPower(b);
 		this.esum_line+=e;
 		this.eold=e;
 		monitor.writeControlVar("Fehler","" + e);
-		monitor.writeControlVar("LeftMotor", ""+a);
-		monitor.writeControlVar("RightMotor",""+b);
+		//monitor.writeControlVar("LeftMotor", ""+a);
+		//monitor.writeControlVar("RightMotor",""+b);
 		monitor.writeControlVar("LeftSensor","" + this.lineSensorLeft);
 		monitor.writeControlVar("RightSensor","" + this.lineSensorRight);
 		lock--;
@@ -721,55 +756,72 @@ public class ControlRST implements IControl {
 	private void curveAlgo2(){
 		this.leftMotor.forward();
 		this.rightMotor.forward();
-		encoderSumL+=this.angleMeasurementLeft.getAngleSum();//update gefahrener Winkel
-		encoderSumR+=this.angleMeasurementRight.getAngleSum();
+		//encoderSumL+=this.angleMeasurementLeft.getAngleSum();//update gefahrener Winkel
+		//encoderSumR+=this.angleMeasurementRight.getAngleSum();
 		double av_encoderSum=0.5*(Math.abs(encoderSumL)+Math.abs(encoderSumR));//Berechnung des Durchschnitts beider Sensoren zur Verbesserung der Genauigkeit
-		if( av_encoderSum < 240 && straight){ //Fahrt zum Kurvenscheitel, 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360�
-			leftMotor.setPower(u_r_max-15); //maximale Ansteuerung --> schnelles Weiterfahren, Gefahr: schie遝n 黚er Kurvenscheitel hinaus
-			rightMotor.setPower(u_r_max-15);
-
+		if( av_encoderSum < 230 && straight){ //Fahrt zum Kurvenscheitel, 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360�
+			this.setAngularVelocity(0.0);
+			this.setVelocity(0.07);
+			this.innerLoop();
+			//this.update_VWCTRL_Parameter();
+			//this.exec_VWCTRL_ALGO();
+			
 		}
-		else if(av_encoderSum >= 220 && straight){//beenden des Fahrens bis zum Kurvenscheitel
+		else if(av_encoderSum >= 230 && straight){//beenden des Fahrens bis zum Kurvenscheitel
 			straight = false;
+			this.resetVW();
 			encoderSumL =0;
 			encoderSumR =0;
 			av_encoderSum=0; //R點ksetzen des Durchschnitts, um sofortigen Kurvenabbruch zu verhindern
 		}
 		if((curve == dest.right) && !straight){		
-			if(av_encoderSum>=180) {
+			if(av_encoderSum>=186) {
 				this.curve = dest.no;
 				this.esum_line=0;
 				this.eold=0;
+				this.resetVW();
 				monitor.writeControlComment("Kurve zur點kgesetzt");
 				this.lock = 10;
 				this.stop();
 				kurven++;
 			}
 			else {
-				this.power+=1;
-				rightMotor.setPower((power<(u_r_max-15))?power:(u_r_max-15));
-				leftMotor.setPower(-((power<(u_r_max-15))?power:(u_r_max-15)));
+				this.setVelocity(0.0);
+				this.setAngularVelocity(-Math.PI/5);
+				this.innerLoop();
+				//this.update_VWCTRL_Parameter();
+				//this.exec_VWCTRL_ALGO();
+				//rightMotor.setPower((power<(u_r_max-15))?power:(u_r_max-15));
+				//leftMotor.setPower(-((power<(u_r_max-15))?power:(u_r_max-15)));
 			}
 		}
 	
 		if((curve == dest.left) && !straight){
-			if(av_encoderSum>=180){
+			if(av_encoderSum>=186){
 				this.curve = dest.no;
 				this.lock = 10;
 				this.esum_line=0;
 				this.eold=0;
+				this.resetVW();
 				monitor.writeControlComment("Kurve zur點kgesetzt");
 				this.stop();
 				this.kurven++;
 			}
 			else {
-				power+=1;
-				rightMotor.setPower(-((power<(u_r_max-15))?power:(u_r_max-15)));
-				leftMotor.setPower((power<(u_r_max-15))?power:(u_r_max-15));
+				this.setVelocity(0.0);
+				this.setAngularVelocity(Math.PI/5);
+				this.innerLoop();
+				//this.update_VWCTRL_Parameter();
+				//this.exec_VWCTRL_ALGO();
+				//power+=1;
+				//rightMotor.setPower(-((power<(u_r_max-15))?power:(u_r_max-15)));
+				//leftMotor.setPower((power<(u_r_max-15))?power:(u_r_max-15));
 			}	
 		}
 	}
 	private void stop(){
+		//this.setAngularVelocity(0.0);
+		//this.setVelocity(0.0);
 		this.leftMotor.stop();
 		this.rightMotor.stop();
 	}
@@ -813,17 +865,18 @@ public class ControlRST implements IControl {
 	 * Funktion zu Testzwecken, berechnet die Kennlinie w(PW)
 	 */
 	private void calcAngVelPerPercent(){
+		this.update_VWCTRL_Parameter();
 		leftMotor.forward();
 		rightMotor.forward();
 		if(z鋒ler==1){
 			monitor.writeControlComment("Akkuspannung: "+lejos.nxt.Battery.getVoltage());
 		}
-		if (first){
+		/*if (first){
 			this.leftMotor.setPower(40);
 			this.rightMotor.setPower(40);
 			z鋒ler++;
-		}
-		if(z鋒ler<100 && !first){
+		}*/
+		if(z鋒ler<100 /*&& !first*/){
 			this.leftMotor.setPower(power);
 			this.rightMotor.setPower(power);
 			this.encoderSumL+=this.angleMeasurementLeft.getAngleSum();
@@ -843,10 +896,10 @@ public class ControlRST implements IControl {
 			this.encoderSumR=0;
 			this.time=0;
 			this.z鋒ler=0;
-			if(first){
+			/*if(first){
 				first=false;
-				power=40;
-			}
+				power=80;
+			}*/
 			this.power+=10;
 		}
 		if(power==50){
@@ -864,6 +917,45 @@ public class ControlRST implements IControl {
 		this.esuml_vw=0;
 		this.esumr_vw=0;
 		this.eoldl_vw=0;
+		this.newVW=true;
 		this.eoldr_vw=0;
+	}
+	
+	private dest nearCurve(){
+		double x=this.currentPosition.getX();
+		double y=this.currentPosition.getY();
+		if(y<0.05 && x>1.60){
+			monitor.writeControlComment("nah Kurve1: x:"+x+" y:"+y);
+			return dest.left;//Kurve 1
+		}
+		else if(x>1.75 && y>0.4){
+			monitor.writeControlComment("nah Kurve2: x:"+x+" y:"+y);
+			return dest.left;//Kurve2
+		}
+		else if(x>1.45 && x<1.7 && y>0.55){
+			monitor.writeControlComment("nah Kurve3: x:"+x+" y:"+y);
+			return dest.left;
+		}
+		else if(x>1.45 && x<1.55 && y<0.5 && y>0.25){
+			monitor.writeControlComment("nah Kurve4: x:"+x+" y:"+y);
+			return dest.right;//Kurve 4
+		}
+		else if(x<0.5 && x>0.25 && y<0.35 && y>0.25){
+			monitor.writeControlComment("nah Kurve5: x:"+x+" y:"+y);
+			return dest.right;//Kurve 5
+		}
+		else if(x<0.35 && x>0.25 && y>0.4){
+			monitor.writeControlComment("nah Kurve6: x:"+x+" y:"+y);
+			return dest.left;
+		}
+		else if(x<0.2 && y>0.55){
+			monitor.writeControlComment("nah Kurve7: x:"+x+" y:"+y);
+			return dest.left;//Kurve7
+		}
+		else if(x<0.05 && y<0.2){
+			monitor.writeControlComment("nah Kurve8: x:"+x+" y:"+y);
+			return dest.left;//Kurve8
+		}
+		else return dest.no;
 	}
 }
