@@ -28,8 +28,9 @@ public class ControlRST implements IControl {
 	 * {@value}4 --- calcAngVelPerPercent
 	 * {@value}5 --- stop
 	 * {@value}6 --- Beispielsequenz 1.Verteidigung
+	 * {@value}7 --- test setpose
 	 */
-	int option = 2; 		
+	int option = 7; 		
 	
 	//general constants:
 	static final int u_r_max =40; 							//power maximum
@@ -44,9 +45,12 @@ public class ControlRST implements IControl {
 	//static final int akku_max = 0;							//maximum voltage of akku in mV
 	
 	//parameter for exec_LINECTRL_ALGO_opt2
-	static final double kp = 0.003; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
+	static final double kp = 0.002; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
 	static final double ki = 0.000; //Integrierbeiwert PID Linefollower absolut:0.0082, neu:0.000
-	static final double kd = 0.02; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
+	static final double kd_fast = 0.02; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
+	static final double kd_slow = 0.03;
+	static final double V_FAST=0.2;
+	static final double V_SLOW=0.15;
 	
 	//global variables for exec_LINECTRL_ALGO_opt2
 	int v=0;	
@@ -70,8 +74,6 @@ public class ControlRST implements IControl {
 	double eoldr_vw =0;		//e(k-1) of right wheel needed in exec_VWCTRL_ALGO	
 	int u_old_l=0;			//last power of left motor
 	int u_old_r=0;			//last power of right motor
-	LinkedList<Double> fehler = new LinkedList<>(); //list of last errors in order to calculate floating average
-	LinkedList<Double> geschw = new LinkedList<>(); //list of last powers in order to calculate floating average
 	boolean newVW=true;
 	
 	//global variables for example sequence:
@@ -140,13 +142,33 @@ public class ControlRST implements IControl {
 	Pose startPosition = new Pose();
 	Pose currentPosition = new Pose();
 	Pose destination = new Pose();
+	double x3=0;
+	boolean ParkStatus=false;
+	boolean firstSetPose=true;
+	int setPosePhase=1;
+	static final double v_sp=0.1;
+	static final double kp_sp=0.0;
+	static final double kd_sp=0.0;
+	double eold_sp=0;
+	double strecke=0;
+	double toleranz=0;
+	static final double ABWEICHUNG=0.02;
 	
 	ControlMode currentCTRLMODE = null;
 	
 	EncoderSensor controlRightEncoder    = null;
 	EncoderSensor controlLeftEncoder     = null;
-
-	int lastTime = 0;
+		
+	//ParkControl variables
+	double startTime =0;
+	double T=0;
+	double[] path=new double[4];
+	double[] x_t=new double[6];
+	double[] y_t=new double[16];
+	boolean inv=false;
+	boolean firstPark=false;
+	double currentTime=0;//aktuelle Zeit in s
+	
 	
     //double currentDistance = 0.0;
     //double Distance = 0.0;
@@ -208,6 +230,9 @@ public class ControlRST implements IControl {
 	 * set velocity
 	 * @see parkingRobot.IControl#setVelocity(double velocity)
 	 */
+	public boolean getParkStatus(){
+		return ParkStatus;
+	}
 	public void setVelocity(double velocity) {
 		this.velocity = velocity;
 	}
@@ -237,11 +262,17 @@ public class ControlRST implements IControl {
 	 * @see parkingRobot.IControl#setPose(Pose currentPosition)
 	 */
 	public void setPose(Pose currentPosition) {
-		// TODO Auto-generated method stub
 		this.currentPosition = currentPosition;
 	}
 	
-
+	public void setPath(double[] path, boolean inv, Pose start, Pose ziel){
+		this.path=path;
+		this.inv = inv;
+		this.startPosition = start;
+		this.destination = ziel;
+		this.firstPark=true;
+		this.ParkStatus=false;
+	}
 	/**
 	 * set control mode
 	 */
@@ -253,7 +284,7 @@ public class ControlRST implements IControl {
 	 * set start time
 	 */
 	public void setStartTime(int startTime){
-		this.lastTime = startTime;
+		this.startTime = startTime/100.0;
 	}
 	
 	/**
@@ -282,7 +313,7 @@ public class ControlRST implements IControl {
 
 	}
 	
-	public void innerLoop(){
+	private void innerLoop(){
 		update_VWCTRL_Parameter();
 		exec_VWCTRL_ALGO();
 	}
@@ -313,7 +344,8 @@ public class ControlRST implements IControl {
 	 * update parameters during PARKING Control Mode
 	 */
 	private void update_PARKCTRL_Parameter(){
-		//Aufgabe 3.4
+		setPose(this.navigation.getPose());
+		this.currentTime=System.currentTimeMillis()/100.0;
 	}
 
 	/**
@@ -431,14 +463,128 @@ public class ControlRST implements IControl {
 	}
 	
     private void exec_SETPOSE_ALGO(){
-    	//Aufgabe 3.3
-	}
+    	double deltax=this.destination.getX()-this.currentPosition.getX();
+    	this.monitor.writeControlComment("deltax: "+deltax);
+    	double deltay=this.destination.getY()-this.currentPosition.getY();
+    	this.monitor.writeControlComment("deltay: "+deltay);
+    	if(this.firstSetPose){
+    		this.strecke=(this.destination.getX()-this.startPosition.getX())/(this.destination.getY()-this.startPosition.getY());
+    		this.x3=Math.atan(this.strecke);	
+    		this.startPosition=this.currentPosition;
+    		this.firstSetPose=false;
+    		this.ParkStatus=false;
+    	}
+    	
+    	//zuerst drehen in die richtige Richtung
+    	double deltax3=this.currentPosition.getHeading()-this.x3;
+    	double abstand=Math.sqrt(deltax*deltax+deltay*deltay);
+    	this.monitor.writeControlComment("abstand: "+abstand);
+    	if(this.setPosePhase==1){
+    		if(Math.abs(deltax3)>Math.PI/40){//Annahme:drehen mit 45°/s --> 4.5°/Abtastung --> maximaler Fehler pi/40
+    			this.setVelocity(0.0);
+    			if(deltax3<0)this.setAngularVelocity(Math.PI/4);
+    			else if(deltax3>0)this.setAngularVelocity(-Math.PI/4);
+    			this.innerLoop();
+    		}
+    		else{//nur einmal abgearbeitet
+    			this.monitor.writeControlComment("Abw. 1. Drehen: deltax3: "+deltax3+" x: "+this.currentPosition.getX()+" y: "+this.currentPosition.getY());
+    			this.resetVW();
+    			this.toleranz=Math.tan(deltax3)*this.strecke+ABWEICHUNG; //zulässige Abweichung vom Ziel abhängig von der Winkelabweichung
+    			this.monitor.writeControlComment("Toleranz: "+this.toleranz);
+    			this.setPosePhase=2;
+    		}
+    	}
+    	if(this.setPosePhase==2){
+    		if(abstand>this.toleranz){
+    			double e_sp=deltax3*v_sp;
+    			this.setVelocity(v_sp);
+    			double w=kp_sp*e_sp+kd_sp*(e_sp-this.eold_sp);
+    			this.setAngularVelocity(w);
+    			this.innerLoop();
+    			this.eold_sp=e_sp;
+    		}
+    		else{
+    			this.setPosePhase=3;
+    			this.resetVW();
+    		}
+    	}
+    	if(this.setPosePhase==3){
+    		double deltaphi=this.currentPosition.getHeading()-this.destination.getHeading();
+    		if(Math.abs(deltaphi)>Math.PI/40){
+    			this.setVelocity(0.0);
+    			if(deltaphi>0){
+    				this.setAngularVelocity(Math.PI/4);
+    			}
+    			else if(deltaphi<0){
+    				this.setAngularVelocity(deltaphi);
+    			}
+    			this.innerLoop();
+    		}
+    		
+    		else{
+    			//this.firstSetPose=true;
+    			this.ParkStatus=true;
+    			this.resetVW();
+    			this.stop();//testen
+    			//this.setPosePhase=1;
+    		}
+    	}
+    }
 	
 	/**
 	 * PARKING along the generated path
 	 */
 	private void exec_PARKCTRL_ALGO(){
-		//Aufgabe 3.4
+		if(this.firstPark){
+			double v0=V_SLOW;
+			float xs=this.startPosition.getX();
+			float ys=this.startPosition.getY();
+			float xz=this.destination.getX();
+			float yz=this.destination.getY();
+			this.T=Math.sqrt(Math.pow((xz-xs),2)+Math.pow((yz-ys),2))/(v0*0.67);
+			this.x_t[5]=6*(-T*v0 - xs + xz)/(Math.pow(T, 5));
+			this.x_t[4]=15*(T*v0 + xs - xz)/(Math.pow(T, 4));
+			this.x_t[3]=10*(-T*v0 - xs + xz)/(Math.pow(T,3));
+			this.x_t[2]=0;
+			this.x_t[1]=v0;
+			this.x_t[0]=xs;
+			this.firstPark=false;
+		}
+		double t=this.currentTime-this.startTime;
+		if((t-T)<0.05){
+			this.ParkStatus=true;
+			return;
+		}
+		double x=0;
+		double dx=0;
+		double d2x=0;
+		double y=0;
+		double dy_x=0;
+		
+		for(int j=0; j<this.x_t.length;j++){//berechne Wert x(t)
+			x+=this.x_t[j]*Math.pow(t, j);
+		}
+		for(int k=1; k<this.x_t.length-1;k++){//berechne Wert von x'(t)
+			dx+=k*this.x_t[k]*Math.pow(t, k-1);
+		}
+		for(int l=2; l<this.x_t.length-2;l++){//berechne Wert von x''(t)
+			d2x+=l*(l-1)*x_t[l]*Math.pow(t, l-2);
+		}
+		for(int i=0; i<this.path.length;i++){//berechne Wert von y(t)
+			y+=path[i]*Math.pow(x,i);
+		}
+		for(int m=1; m<this.path.length-1;m++){
+			dy_x+=m*this.path[m]*Math.pow(x, m-1);
+		}
+		double d2y_x=6*this.path[3]*x+2*this.path[2];
+		double dy_t=dy_x*dx;
+		double d2y_t=d2y_x*Math.pow(dx, 2)+dy_x*d2x;//Regel von Faa die Bruno
+		double v=Math.sqrt(dx*dx+dy_t*dy_t);
+		this.setVelocity(v);
+		double w=Math.pow(v,2.5)/(dx*d2y_t-d2x*dy_t);
+		w=w>Math.PI?Math.PI:w; //Stellgrößenbegrenzung, da Polstelle im Wendepunkt der Kurve nicht umsetzbar
+		this.setAngularVelocity(w);
+		this.innerLoop();		
 	}
 	
     private void exec_INACTIVE(){
@@ -533,7 +679,14 @@ public class ControlRST implements IControl {
     			this.exec_LINECTRL_ALGO_opt2();
     			
     		}
+    		
     	}
+    	if(option==7){
+			this.destination.setLocation((float)0.3, (float)0.3);
+			this.destination.setHeading((float)0.0);
+			this.update_SETPOSE_Parameter();
+			this.exec_SETPOSE_ALGO();
+		}
     }
     /**
 	 * DRIVING along black line
@@ -637,11 +790,14 @@ public class ControlRST implements IControl {
 		this.monitor.writeControlComment("Linectrl aufgerufen");
 		//leftMotor.forward();
 		//rightMotor.forward();
-		if(nearCurve() == dest.no){
-			this.setVelocity(0.20);
+		double kd;
+		if((nearCurve() == dest.no) && !nearSlot()){
+			this.setVelocity(V_FAST);
+			kd = kd_fast;
 		}
 		else{
-			this.setVelocity(0.15);
+			this.setVelocity(V_SLOW);
+			kd = kd_slow;
 		}
 		int e = this.lineSensorLeft - this.lineSensorRight; //Berechne Fehler aus Differenz der Werte --> w = 0
 		
@@ -651,13 +807,13 @@ public class ControlRST implements IControl {
 		}
 		if(curve != dest.no){
 			this.curveAlgo2();
-			this.monitor.writeControlComment("Kurve");
+			//this.monitor.writeControlComment("Kurve");
 			return;
 		}
 		else{
 		//Kurvendetektion, funktioniert stellenweise schon gut
 		if((nearCurve()!=dest.no) && lock<=0){		
-			if (((e-eold)<=-35) && (this.lineSensorLeft<=50) && (this.lineSensorRight>=50)){
+			if (((e-eold)<=-35) && (this.lineSensorLeft<=50) /*&& (this.lineSensorRight>=50)*/){
 				this.curve=nearCurve();
 				this.encoderSumL=0;
 				this.encoderSumR=0;
@@ -672,7 +828,7 @@ public class ControlRST implements IControl {
 				return;
 			}
 	
-			if (((e-eold)>=35) && (this.lineSensorLeft>=50) && (this.lineSensorRight<=50)){
+			if (((e-eold)>=35) /*&& (this.lineSensorLeft>=50)*/ && (this.lineSensorRight<=50)){
 				this.curve=nearCurve();
 				this.encoderSumL=0;
 				this.encoderSumR=0;
@@ -713,41 +869,7 @@ public class ControlRST implements IControl {
 	 * des gefahrenen Radius von Ladezustand des Akkus
 	 */
 	
-	private void curveAlgo(){
-		this.leftMotor.forward();
-		this.rightMotor.forward();
-		if(curve == dest.right){
-			this.encoderSum+=this.angleMeasurementRight.getAngleSum();
-			if(encoderSum>=388) {//410
-				curve = dest.no;
-				this.esum_line=0;
-				this.eold=0;
-				monitor.writeControlComment("Kurve zurückgesetzt");
-				lock = 10;
-			}
-			else {
-				
-				rightMotor.setPower(u_r_max+6);//max+6
-				leftMotor.setPower(11);//13
-			}
-		}
-		
-		if(curve == dest.left){
-			this.encoderSum+=this.angleMeasurementLeft.getAngleSum();
-			if(encoderSum>=388){
-				this.curve = dest.no;
-				lock = 10;
-				this.esum_line=0;
-				this.eold=0;
-				monitor.writeControlComment("Kurve zurückgesetzt");
-			}
-			else {
-				rightMotor.setPower(11);
-				leftMotor.setPower(u_r_max+6);
-			}
-		}
-		
-	}
+	
 	
 	/**
 	 * Funktion, die eine reibungslose Kurvenfahrt sicherstellen soll, indem der Roboter bis zum Kurvenscheitel fährt und
@@ -759,15 +881,15 @@ public class ControlRST implements IControl {
 		//encoderSumL+=this.angleMeasurementLeft.getAngleSum();//update gefahrener Winkel
 		//encoderSumR+=this.angleMeasurementRight.getAngleSum();
 		double av_encoderSum=0.5*(Math.abs(encoderSumL)+Math.abs(encoderSumR));//Berechnung des Durchschnitts beider Sensoren zur Verbesserung der Genauigkeit
-		if( av_encoderSum < 230 && straight){ //Fahrt zum Kurvenscheitel, 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360„1¤7
+		if( av_encoderSum < 225 && straight){ //Fahrt zum Kurvenscheitel, 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360„1¤7
 			this.setAngularVelocity(0.0);
-			this.setVelocity(0.07);
+			this.setVelocity(0.1);
 			this.innerLoop();
 			//this.update_VWCTRL_Parameter();
 			//this.exec_VWCTRL_ALGO();
 			
 		}
-		else if(av_encoderSum >= 230 && straight){//beenden des Fahrens bis zum Kurvenscheitel
+		else if(av_encoderSum >= 225 && straight){//beenden des Fahrens bis zum Kurvenscheitel
 			straight = false;
 			this.resetVW();
 			encoderSumL =0;
@@ -775,7 +897,7 @@ public class ControlRST implements IControl {
 			av_encoderSum=0; //Rücksetzen des Durchschnitts, um sofortigen Kurvenabbruch zu verhindern
 		}
 		if((curve == dest.right) && !straight){		
-			if(av_encoderSum>=186) {
+			if(av_encoderSum>=170) {
 				this.curve = dest.no;
 				this.esum_line=0;
 				this.eold=0;
@@ -787,7 +909,7 @@ public class ControlRST implements IControl {
 			}
 			else {
 				this.setVelocity(0.0);
-				this.setAngularVelocity(-Math.PI/5);
+				this.setAngularVelocity(-Math.PI/4);
 				this.innerLoop();
 				//this.update_VWCTRL_Parameter();
 				//this.exec_VWCTRL_ALGO();
@@ -797,7 +919,7 @@ public class ControlRST implements IControl {
 		}
 	
 		if((curve == dest.left) && !straight){
-			if(av_encoderSum>=186){
+			if(av_encoderSum>=170){
 				this.curve = dest.no;
 				this.lock = 10;
 				this.esum_line=0;
@@ -809,7 +931,7 @@ public class ControlRST implements IControl {
 			}
 			else {
 				this.setVelocity(0.0);
-				this.setAngularVelocity(Math.PI/5);
+				this.setAngularVelocity(Math.PI/4);
 				this.innerLoop();
 				//this.update_VWCTRL_Parameter();
 				//this.exec_VWCTRL_ALGO();
@@ -957,5 +1079,10 @@ public class ControlRST implements IControl {
 			return dest.left;//Kurve8
 		}
 		else return dest.no;
+	}
+	private boolean nearSlot(){
+		double d=Math.pow((this.currentPosition.getX()-this.startPosition.getX()),2)+Math.pow((this.currentPosition.getY()-this.startPosition.getY()),2);
+		if(this.firstPark && d<0.04)return true;
+		else return false;
 	}
 }

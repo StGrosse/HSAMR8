@@ -191,6 +191,11 @@ public class ControlRST implements IControl {
 
 	}
 	
+	public boolean getParkStatus(){
+		return false;
+	}
+	
+	public void setPath(double[]path, boolean inv, Pose start, Pose ziel){}
 	// Private methods
 	
 	/**

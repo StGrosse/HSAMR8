@@ -98,10 +98,22 @@ public interface IControl {
 	 */
 	public void exec_CTRL_ALGO();
 	
+	
 	/**
-	 * execute the inner loop of cascade control
+	 * returns the current park status:
+	 * true---parking accomplished
+	 * false---parking not yet accomplished
+	 * @return parkStatus
 	 */
-	//public void innerLoop();
-
+	public boolean getParkStatus();
+	
+	/**
+	 * set the coefficients of path polynomial y(x)
+	 * @param path coefficients (array index = degree)
+	 * @param inv false---y(x), true---x(y)
+	 * @param start start pose
+	 * @param ziel destination pose
+	 */
+	public void setPath(double[] path, boolean inv, Pose start, Pose ziel);
 }
 

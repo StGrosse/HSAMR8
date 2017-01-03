@@ -37,10 +37,10 @@ public class PerceptionPMP implements IPerception {
 	
 	int RightLineSensor		=	0;
 	int LeftLineSensor		=	0;
-	int LSrwhite			=	0; 
-	int LSrblack			=	0;
-	int LSlwhite			=	0; 
-	int LSlblack			=	0;
+	int LSrwhite			=	60; 
+	int LSrblack			=	37;
+	int LSlwhite			=	60; 
+	int LSlblack			=	37;
 
 
 	double UOdmometry		=	0;
@@ -156,6 +156,10 @@ public class PerceptionPMP implements IPerception {
 		Button.ENTER.waitForPressAndRelease();
 		this.LSrblack = this.RightLineSensor;
 		this.LSlblack = this.LeftLineSensor;
+		/*this.LSlwhite = 60;
+		this.LSrwhite = 60;
+		this.LSrblack = 37;
+		this.LSlblack = 37;*/
 	}
 	
 	public void showSensorData() {
