@@ -8,12 +8,12 @@ import parkingRobot.IMonitor;
 import parkingRobot.IPerception;
 import parkingRobot.IPerception.*;
 import lejos.nxt.NXTMotor;
-import lejos.nxt.Sound;
+//import lejos.nxt.Sound;
 import parkingRobot.INavigation;
 //import lejos.nxt.Sound;
 import java.lang.Math;
 //import lejos.nxt.LCD;
-import java.util.LinkedList;
+//import java.util.LinkedList;
 
 /**
  * Main class for control module
@@ -30,7 +30,7 @@ public class ControlRST implements IControl {
 	 * {@value}6 --- Beispielsequenz 1.Verteidigung
 	 * {@value}7 --- test setpose
 	 */
-	int option = 7; 		
+	int option = 2; 		
 	
 	//general constants:
 	static final int u_r_max =40; 							//power maximum
@@ -45,16 +45,17 @@ public class ControlRST implements IControl {
 	//static final int akku_max = 0;							//maximum voltage of akku in mV
 	
 	//parameter for exec_LINECTRL_ALGO_opt2
-	static final double kp = 0.002; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
-	static final double ki = 0.000; //Integrierbeiwert PID Linefollower absolut:0.0082, neu:0.000
+	static final double kp_slow = 0.003; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
+	static final double kp_fast = 0.0005;
+	//static final double ki = 0.000; //Integrierbeiwert PID Linefollower absolut:0.0082, neu:0.000
 	static final double kd_fast = 0.02; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
-	static final double kd_slow = 0.03;
+	static final double kd_slow = 0.028;//0.024
 	static final double V_FAST=0.2;
 	static final double V_SLOW=0.15;
 	
 	//global variables for exec_LINECTRL_ALGO_opt2
 	int v=0;	
-	int esum_line =0;				//error-sum for integrator needed in exec_LINECTRL_ALGO_opt2
+	//int esum_line =0;				//error-sum for integrator needed in exec_LINECTRL_ALGO_opt2
 	int eold = 0; 					//e(k-1) needed in exec_LINECTRL_ALGO_opt2
 	
 	//global variables for curveAlgo2()
@@ -147,8 +148,8 @@ public class ControlRST implements IControl {
 	boolean firstSetPose=true;
 	int setPosePhase=1;
 	static final double v_sp=0.1;
-	static final double kp_sp=0.0;
-	static final double kd_sp=0.0;
+	static final double kp_sp=20.0;
+	static final double kd_sp=30.0;//höherer D-Anteil verhindert Schwingen nicht, verlangsamt es nur
 	double eold_sp=0;
 	double strecke=0;
 	double toleranz=0;
@@ -215,6 +216,7 @@ public class ControlRST implements IControl {
 		monitor.addControlVar("wRadRechts");
 		//monitor.addControlVar("FehlerRechts");
 		//monitor.addControlVar("PWRechts");
+		monitor.addControlVar("Fehler setpose");
 		
 		this.ctrlThread = new ControlThread(this);
 		
@@ -253,6 +255,8 @@ public class ControlRST implements IControl {
 	public void setDestination(double heading, double x, double y){
 		this.destination.setHeading((float) heading);
 		this.destination.setLocation((float) x, (float) y);
+		this.firstSetPose=true;
+		this.setPosePhase=1;
 	}
 	
 
@@ -401,8 +405,8 @@ public class ControlRST implements IControl {
 		}
 		//this.monitor.writeControlComment("links: "+(int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL)+" rechts: "+(int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR));
 		else{
-			steuerL=10;
-			steuerR=10;
+			steuerL=11;
+			steuerR=11;
 		}
 		
 		if(this.newVW){
@@ -427,8 +431,8 @@ public class ControlRST implements IControl {
 		//Berechnung der Stellgrößen (Pulsweite)
 		double u_l = kp_l*e_l+ki_l*this.esuml_vw+kd_l*(e_l-this.eoldl_vw);
 		double u_r = kp_r*e_r+ki_r*this.esumr_vw+kd_r*(e_r-this.eoldr_vw);
-		double pw_l=Math.abs(u_old_l+u_l)>80?80:u_old_l+u_l;
-		double pw_r=Math.abs(u_old_r+u_r)>80?80:u_old_r+u_r;
+		double pw_l=Math.abs(u_old_l+u_l)>100?100:u_old_l+u_l;
+		double pw_r=Math.abs(u_old_r+u_r)>100?100:u_old_r+u_r;
 		u_old_l=(int)pw_l;
 		u_old_r=(int)pw_r;
 		//fehler.add(0, e_r);
@@ -467,66 +471,104 @@ public class ControlRST implements IControl {
     	this.monitor.writeControlComment("deltax: "+deltax);
     	double deltay=this.destination.getY()-this.currentPosition.getY();
     	this.monitor.writeControlComment("deltay: "+deltay);
+    	
+    	double currentHeading=this.currentPosition.getHeading();
+    	while(currentHeading<0){
+    		currentHeading+=2*Math.PI;
+    	}
+    	//this.monitor.writeControlComment("akt Winkel: "+currentHeading);
+    	
+    	
     	if(this.firstSetPose){
-    		this.strecke=(this.destination.getX()-this.startPosition.getX())/(this.destination.getY()-this.startPosition.getY());
-    		this.x3=Math.atan(this.strecke);	
     		this.startPosition=this.currentPosition;
+    		double x1=this.destination.getX()-this.startPosition.getX();
+    		double x2=this.destination.getY()-this.startPosition.getY();
+    		if(x1==0){
+    			this.strecke=x2;
+    			if(x2>0) this.x3=Math.PI/2;
+    			else if(x2<0) this.x3=3*Math.PI/2;
+    			else this.x3=currentHeading;
+    		}
+    		else if(x2==0){
+    			this.strecke=x1;
+    			if(x1>0) this.x3=0;
+    			else if(x1<0) this.x3=Math.PI;
+    		}
+    		else {
+    			this.strecke=Math.sqrt(x2*x2+x1*x1);
+    			if(x2>0 && x1>0) this.x3=Math.atan(x2/x1);
+    			else if(x2<0 && x1>0) this.x3=2*Math.PI+Math.atan(x2/x1);
+    			else if(x2>0 && x1<0) this.x3=Math.PI+Math.atan(x2/x1);
+    			else if(x2<0 && x1<0) this.x3=Math.PI+Math.atan(x2/x1);
+    		}
+    		this.monitor.writeControlComment("strecke: "+strecke+" ,Winkel: "+x3);
+    		
     		this.firstSetPose=false;
     		this.ParkStatus=false;
     	}
+    	double deltax3=currentHeading-this.x3;
+    	if(Math.abs(deltax3)>Math.PI){
+    		if(deltax3<0)deltax3+=2*Math.PI;
+    		else if(deltax3>0) deltax3-=2*Math.PI;
+    	}
+    	this.monitor.writeControlComment("deltax3: "+deltax3);
     	
-    	//zuerst drehen in die richtige Richtung
-    	double deltax3=this.currentPosition.getHeading()-this.x3;
-    	double abstand=Math.sqrt(deltax*deltax+deltay*deltay);
-    	this.monitor.writeControlComment("abstand: "+abstand);
+    	//zuerst drehen in die richtige Richtung  	
     	if(this.setPosePhase==1){
-    		if(Math.abs(deltax3)>Math.PI/40){//Annahme:drehen mit 45°/s --> 4.5°/Abtastung --> maximaler Fehler pi/40
+    		if(Math.abs(deltax3)>Math.PI/50){//Annahme:drehen mit 45°/s --> 4.5°/Abtastung --> maximaler Fehler pi/40
     			this.setVelocity(0.0);
-    			if(deltax3<0)this.setAngularVelocity(Math.PI/4);
-    			else if(deltax3>0)this.setAngularVelocity(-Math.PI/4);
+    			if(deltax3< 0)this.setAngularVelocity(+Math.PI/5);
+    			else if(deltax3>0)this.setAngularVelocity(-Math.PI/5);
     			this.innerLoop();
     		}
     		else{//nur einmal abgearbeitet
     			this.monitor.writeControlComment("Abw. 1. Drehen: deltax3: "+deltax3+" x: "+this.currentPosition.getX()+" y: "+this.currentPosition.getY());
     			this.resetVW();
-    			this.toleranz=Math.tan(deltax3)*this.strecke+ABWEICHUNG; //zulässige Abweichung vom Ziel abhängig von der Winkelabweichung
+    			this.toleranz=Math.abs(Math.tan(deltax3)*this.strecke)+ABWEICHUNG; //zulässige Abweichung vom Ziel abhängig von der Winkelabweichung
     			this.monitor.writeControlComment("Toleranz: "+this.toleranz);
     			this.setPosePhase=2;
     		}
     	}
+    	//Zielpunkt anfahren
     	if(this.setPosePhase==2){
-    		if(abstand>this.toleranz){
+    		double abstand2=deltax*deltax+deltay*deltay;
+        	this.monitor.writeControlComment("abstand^2: "+abstand2);
+    		if(abstand2>(this.toleranz*this.toleranz)){
     			double e_sp=deltax3*v_sp;
+    			this.monitor.writeControlVar("Fehler setpose", ""+e_sp);
     			this.setVelocity(v_sp);
-    			double w=kp_sp*e_sp+kd_sp*(e_sp-this.eold_sp);
+    			double w=-(kp_sp*e_sp+kd_sp*(e_sp-this.eold_sp));
     			this.setAngularVelocity(w);
     			this.innerLoop();
     			this.eold_sp=e_sp;
+    			
     		}
     		else{
     			this.setPosePhase=3;
+    			this.monitor.writeControlComment("ziel erreicht, quadr. abw: "+abstand2);
     			this.resetVW();
     		}
     	}
+    	//Zielpose einnehmen
     	if(this.setPosePhase==3){
-    		double deltaphi=this.currentPosition.getHeading()-this.destination.getHeading();
-    		if(Math.abs(deltaphi)>Math.PI/40){
+    		double deltaphi=currentHeading-this.destination.getHeading();
+    		if(Math.abs(deltaphi)>Math.PI){
+    			if(deltaphi>0) deltaphi-=2*Math.PI;
+    			else if(deltaphi<0) deltaphi+=2*Math.PI;
+    		}
+    		this.monitor.writeControlComment("deltaphi:"+ deltaphi);
+    		if(Math.abs(deltaphi)>Math.PI/60 && !ParkStatus){
     			this.setVelocity(0.0);
-    			if(deltaphi>0){
-    				this.setAngularVelocity(Math.PI/4);
-    			}
-    			else if(deltaphi<0){
-    				this.setAngularVelocity(deltaphi);
-    			}
+    			if(deltaphi< 0)this.setAngularVelocity(+Math.PI/6);
+    			else if(deltaphi>0)this.setAngularVelocity(-Math.PI/6);
     			this.innerLoop();
     		}
     		
     		else{
-    			//this.firstSetPose=true;
+    			this.monitor.writeControlComment("Zielpose erreicht, abw: "+deltaphi);
     			this.ParkStatus=true;
     			this.resetVW();
-    			this.stop();//testen
-    			//this.setPosePhase=1;
+    			this.stop();//testen   			
     		}
     	}
     }
@@ -535,13 +577,14 @@ public class ControlRST implements IControl {
 	 * PARKING along the generated path
 	 */
 	private void exec_PARKCTRL_ALGO(){
+		//für rückwärts einparken muss v0,v,omega negiert werden, sonst bleibt die Planung gleich
 		if(this.firstPark){
 			double v0=V_SLOW;
 			float xs=this.startPosition.getX();
 			float ys=this.startPosition.getY();
 			float xz=this.destination.getX();
 			float yz=this.destination.getY();
-			this.T=Math.sqrt(Math.pow((xz-xs),2)+Math.pow((yz-ys),2))/(v0*0.67);
+			this.T=Math.sqrt(Math.pow((xz-xs),2)+Math.pow((yz-ys),2))/(Math.abs(v0)*0.67);
 			this.x_t[5]=6*(-T*v0 - xs + xz)/(Math.pow(T, 5));
 			this.x_t[4]=15*(T*v0 + xs - xz)/(Math.pow(T, 4));
 			this.x_t[3]=10*(-T*v0 - xs + xz)/(Math.pow(T,3));
@@ -552,6 +595,7 @@ public class ControlRST implements IControl {
 		}
 		double t=this.currentTime-this.startTime;
 		if((t-T)<0.05){
+			this.stop();
 			this.ParkStatus=true;
 			return;
 		}
@@ -682,7 +726,7 @@ public class ControlRST implements IControl {
     		
     	}
     	if(option==7){
-			this.destination.setLocation((float)0.3, (float)0.3);
+			this.destination.setLocation((float)0.8, (float)0.0);
 			this.destination.setHeading((float)0.0);
 			this.update_SETPOSE_Parameter();
 			this.exec_SETPOSE_ALGO();
@@ -791,13 +835,17 @@ public class ControlRST implements IControl {
 		//leftMotor.forward();
 		//rightMotor.forward();
 		double kd;
-		if((nearCurve() == dest.no) && !nearSlot()){
-			this.setVelocity(V_FAST);
+		double kp;
+		if((nearCurve() == null) && !nearSlot()){
+			this.setVelocity(V_FAST);//eigentlich fast
 			kd = kd_fast;
+			kp = kp_fast;
+			
 		}
 		else{
 			this.setVelocity(V_SLOW);
 			kd = kd_slow;
+			kp = kp_slow;
 		}
 		int e = this.lineSensorLeft - this.lineSensorRight; //Berechne Fehler aus Differenz der Werte --> w = 0
 		
@@ -805,14 +853,15 @@ public class ControlRST implements IControl {
 			this.stop();
 			return;
 		}
-		if(curve != dest.no){
+		if(curve != dest.no ){
 			this.curveAlgo2();
 			//this.monitor.writeControlComment("Kurve");
 			return;
 		}
 		else{
 		//Kurvendetektion, funktioniert stellenweise schon gut
-		if((nearCurve()!=dest.no) && lock<=0){		
+			dest a = nearCurve();
+		if((a != dest.no) && (a != null) && lock<=0){		
 			if (((e-eold)<=-35) && (this.lineSensorLeft<=50) /*&& (this.lineSensorRight>=50)*/){
 				this.curve=nearCurve();
 				this.encoderSumL=0;
@@ -843,9 +892,8 @@ public class ControlRST implements IControl {
 				return;
 			}
 		}
-				
-		if(e<=10)esum_line=0;
-		double u_r = (kp*e + ki*esum_line+kd*(e-this.eold));
+		
+		double u_r = (kp*e +kd*(e-this.eold));
 		this.setAngularVelocity(-u_r);
 		this.innerLoop();
 		//int a = u_r_max + u_r;
@@ -854,7 +902,6 @@ public class ControlRST implements IControl {
 		this.monitor.writeControlComment("u_r_r: "+ b);*/
 		//this.leftMotor.setPower(a);
 		//this.rightMotor.setPower(b);
-		this.esum_line+=e;
 		this.eold=e;
 		monitor.writeControlVar("Fehler","" + e);
 		//monitor.writeControlVar("LeftMotor", ""+a);
@@ -881,7 +928,7 @@ public class ControlRST implements IControl {
 		//encoderSumL+=this.angleMeasurementLeft.getAngleSum();//update gefahrener Winkel
 		//encoderSumR+=this.angleMeasurementRight.getAngleSum();
 		double av_encoderSum=0.5*(Math.abs(encoderSumL)+Math.abs(encoderSumR));//Berechnung des Durchschnitts beider Sensoren zur Verbesserung der Genauigkeit
-		if( av_encoderSum < 225 && straight){ //Fahrt zum Kurvenscheitel, 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360„1¤7
+		if( av_encoderSum < 190 && straight){ //Fahrt zum Kurvenscheitel, 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360„1¤7
 			this.setAngularVelocity(0.0);
 			this.setVelocity(0.1);
 			this.innerLoop();
@@ -889,7 +936,7 @@ public class ControlRST implements IControl {
 			//this.exec_VWCTRL_ALGO();
 			
 		}
-		else if(av_encoderSum >= 225 && straight){//beenden des Fahrens bis zum Kurvenscheitel
+		else if(av_encoderSum >= 190 && straight){//beenden des Fahrens bis zum Kurvenscheitel
 			straight = false;
 			this.resetVW();
 			encoderSumL =0;
@@ -899,7 +946,7 @@ public class ControlRST implements IControl {
 		if((curve == dest.right) && !straight){		
 			if(av_encoderSum>=170) {
 				this.curve = dest.no;
-				this.esum_line=0;
+				//this.esum_line=0;
 				this.eold=0;
 				this.resetVW();
 				monitor.writeControlComment("Kurve zurückgesetzt");
@@ -922,7 +969,7 @@ public class ControlRST implements IControl {
 			if(av_encoderSum>=170){
 				this.curve = dest.no;
 				this.lock = 10;
-				this.esum_line=0;
+				//this.esum_line=0;
 				this.eold=0;
 				this.resetVW();
 				monitor.writeControlComment("Kurve zurückgesetzt");
@@ -1046,39 +1093,47 @@ public class ControlRST implements IControl {
 	private dest nearCurve(){
 		double x=this.currentPosition.getX();
 		double y=this.currentPosition.getY();
-		if(y<0.05 && x>1.60){
+		if(y<0.3 && x>1.60){
 			monitor.writeControlComment("nah Kurve1: x:"+x+" y:"+y);
-			return dest.left;//Kurve 1
+			if(y<0.05 && x>1.65) return dest.left;//Kurve 1
+			else return dest.no;
 		}
-		else if(x>1.75 && y>0.4){
+		else if(x>1.65 && y>0.3){
 			monitor.writeControlComment("nah Kurve2: x:"+x+" y:"+y);
-			return dest.left;//Kurve2
+			if(y>0.45 && x>1.75) return dest.left;//Kurve2
+			else return dest.no;
 		}
-		else if(x>1.45 && x<1.7 && y>0.55){
+		else if(x>1.45 && x<1.65 && y>0.45){
 			monitor.writeControlComment("nah Kurve3: x:"+x+" y:"+y);
-			return dest.left;
+			if(x>1.45 && x< 1.65 && y>0.55) return dest.left;
+			else return dest.no;
 		}
-		else if(x>1.45 && x<1.55 && y<0.5 && y>0.25){
+		else if(x>1.2 && x<1.55 && y<0.45 && y>0.25){
 			monitor.writeControlComment("nah Kurve4: x:"+x+" y:"+y);
-			return dest.right;//Kurve 4
+			if(x>1.45 && x<1.55 && y<0.45 && y>0.25) return dest.right;//Kurve 4
+			else return dest.no;
 		}
-		else if(x<0.5 && x>0.25 && y<0.35 && y>0.25){
+		else if(x<0.5 && x>0.25 && y<0.45 && y>0.25){
 			monitor.writeControlComment("nah Kurve5: x:"+x+" y:"+y);
-			return dest.right;//Kurve 5
+			if(x<0.45 && x>0.25 && y<0.35 && y>0.25) return dest.right;//Kurve 5
+			else return dest.no;
 		}
-		else if(x<0.35 && x>0.25 && y>0.4){
+		else if(x<0.35 && x>0.15 && y>0.45){
 			monitor.writeControlComment("nah Kurve6: x:"+x+" y:"+y);
-			return dest.left;
+			if(x<0.35 && x>0.25 && y>0.45) return dest.left;
+			else return dest.no;
 		}
-		else if(x<0.2 && y>0.55){
+		else if(x<0.15 && y>0.3){
 			monitor.writeControlComment("nah Kurve7: x:"+x+" y:"+y);
-			return dest.left;//Kurve7
+			if(x<0.15 && y>0.55)return dest.left;//Kurve7
+			else return dest.no;
 		}
-		else if(x<0.05 && y<0.2){
+		else if(x<0.05 && y<0.3){
 			monitor.writeControlComment("nah Kurve8: x:"+x+" y:"+y);
-			return dest.left;//Kurve8
+			if(x<0.05 && y<0.15)return dest.left;//Kurve8
+			else return dest.no;
 		}
-		else return dest.no;
+		else return null;
 	}
 	private boolean nearSlot(){
 		double d=Math.pow((this.currentPosition.getX()-this.startPosition.getX()),2)+Math.pow((this.currentPosition.getY()-this.startPosition.getY()),2);

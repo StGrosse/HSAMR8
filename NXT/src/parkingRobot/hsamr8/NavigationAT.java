@@ -187,17 +187,17 @@ public class NavigationAT implements INavigation{
 	boolean signal=false;
 	
 	double parkenGutLength = 0.02;
-	double parkenGutLength1 = 0.03;//distance from centerl to abstandsensor
+	double parkenGutLength1 = 0.05;//distance from centerl to abstandsensor
 	double parkenGutLength2 = 0.15;
 	
 	double frontparkPosition = 0;
 	double backparkPosition = 0;
 	double parkingSlotLength=0;
 	/*
-	 * the parameter 
+	 * the parameter SameSlotDifference 25 mm
 	 */
 	//static final int maxDis=10;
-	private static final double SameSlotDifference = 20;
+	private static final double SameSlotDifference = 25;
 	//float lineWinkel=0;
 	/**
 	 * returns the map
@@ -357,11 +357,15 @@ public class NavigationAT implements INavigation{
 			angleResult 	= this.pose.getHeading() + w * deltaT;
 			if (angleResult >Math.PI * 1.77) {
 				angleResult = 0;
-				xResult = 0.02;
-				yResult = 0.0;
+				if(this.parkingSlotDetectionIsOn){
+					xResult = 0.02;
+					yResult = 0.0;
+				}
 				currentLine=0;
 			}
 		}
+		
+		if(this.parkingSlotDetectionIsOn){
 		//line0
 		if((this.pose.getHeading() < Math.PI * 0.10)&& (this.pose.getHeading() >- Math.PI * 0.10)){
 		         currentLine=0;
@@ -421,7 +425,7 @@ public class NavigationAT implements INavigation{
             monitor.writeNavigationComment("enterloop1");
 			currentLine=1;
 			   //Einpaken
-	        if (parkingSlotDetectionIsOn) {
+	        		if (parkingSlotDetectionIsOn) {
 				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.55)) {
 					if ((this.pose.getHeading() < Math.PI * 0.49) || (this.pose.getHeading() >Math.PI * 0.51)) {
 						angleResult =0.5*Math.PI;
@@ -472,13 +476,14 @@ public class NavigationAT implements INavigation{
               currentLine=2;
               monitor.writeNavigationComment("enter loopline2");
 
-		   if (parkingSlotDetectionIsOn) {
+		   //if (parkingSlotDetectionIsOn) {
 
 				    monitor.writeNavigationComment("enter loopline2¡ª¡ªtest");
 			      if ((this.pose.getX() < 1.78) && (this.pose.getX() >1.55)) {
 					if ((this.pose.getHeading()<Math.PI * 0.99) || (this.pose.getHeading() >Math.PI * 1.01)) {
 						angleResult = Math.PI;
 					}
+			//		if (this.pose.getY() < 0.59)
 					if (this.pose.getY() < 0.59)
 					{
 						yResult = 0.6;
@@ -487,7 +492,7 @@ public class NavigationAT implements INavigation{
 						yResult = 0.6;
 					}
 					
-			}
+			//}
 				currentLine = 2;
 			}
 	
@@ -503,7 +508,7 @@ public class NavigationAT implements INavigation{
 			xResult = 1.50;
 			angleResult = Math.PI * 1.5;
 			currentLine = 3;
-			if (parkingSlotDetectionIsOn) {
+		//	if (parkingSlotDetectionIsOn) {
 				if ((this.pose.getY() > 0.35) && (this.pose.getY() < 0.65)) {
 				  angleResult = Math.PI * 1.5;
 				  currentLine=3;
@@ -517,16 +522,18 @@ public class NavigationAT implements INavigation{
 						xResult = 1.50;
 					}
 					
-				}
+		//		}
 				if(this.pose.getY()<0.3){
 					yResult=0.3;
-				}				
+				}
+			
+				
+				}
 			}
-		}
 		if (currentLine == 3) {
 			monitor.writeNavigationComment("enter loopline3");
 			currentLine=3;
-			if (parkingSlotDetectionIsOn) {
+	      //    if (parkingSlotDetectionIsOn) {
 				    currentLine=3;
 				   // xResult=0.5;
 				if ((this.pose.getY() > 0.35) && (this.pose.getY() < 0.65)) {
@@ -545,7 +552,7 @@ public class NavigationAT implements INavigation{
 				if(this.pose.getY()<0.3){
 					yResult=0.3;
 				}
-			}
+		//}
 			
 		
 		}
@@ -590,7 +597,6 @@ public class NavigationAT implements INavigation{
 		   	if (parkingSlotDetectionIsOn) {
 				//yResult=0.3;
 				if ((this.pose.getX() <1.65) && (this.pose.getX() >0.45)) {
-					//yResult=0.3;//test
 					if ((this.pose.getHeading() < Math.PI * 0.99)|| (this.pose.getHeading()> Math.PI * 1.01)) {
 						    angleResult = Math.PI;
 					}   
@@ -755,7 +761,7 @@ public class NavigationAT implements INavigation{
 			//}
 		   }
 		}
-		
+		}
 		this.pose.setLocation((float) xResult, (float) yResult);
 		this.pose.setHeading((float) angleResult);
 		
@@ -817,7 +823,7 @@ public class NavigationAT implements INavigation{
 					//parkluecke0 und 1
 					monitor.writeNavigationComment("parkenLine0");
 				   if ((parkenSlotSuch0 == false) && (this.frontSideSensorDistance >280)) {
-						backBoundaryPosition = new Point((float) (this.pose.getX() + parkenGutLength1), this.pose.getY());
+						backBoundaryPosition = new Point((float) (this.pose.getX()-parkenGutLength1), this.pose.getY());
 						monitor.writeNavigationComment("back");
 						//backBoundaryPosition = new Point(this.pose.getX()+parkenGutLength1, this.pose.getY());
 						//parkenSlotSuch0 = true;
@@ -832,7 +838,7 @@ public class NavigationAT implements INavigation{
 
 					}
 					if ((parkenSlotSuch0 == true) && (this.frontSideSensorDistance <180)) {
-						frontBoundaryPosition =new Point((float) (this.pose.getX() + parkenGutLength1), this.pose.getY());
+						frontBoundaryPosition =new Point((float) (this.pose.getX()-parkenGutLength2), this.pose.getY());
 						parkenSlotSuch0 = false;
 						signal = true;
                         monitor.writeNavigationComment("front");
@@ -843,7 +849,7 @@ public class NavigationAT implements INavigation{
 				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.6)) {
 					monitor.writeNavigationComment("parkenLine1");
 					if ((parkenSlotSuch1 == false) && (this.frontSideSensorDistance > 280)) {
-						backBoundaryPosition = new Point(this.pose.getX(), (float) (this.pose.getY() +parkenGutLength1));
+						backBoundaryPosition = new Point(this.pose.getX(), (float) (this.pose.getY() +parkenGutLength2));
 						monitor.writeNavigationComment("back_Line1");
 						parkenSlotSuch1 = true;
 						
@@ -887,18 +893,20 @@ public class NavigationAT implements INavigation{
 					//backparkPosition = Math.abs(this.backBoundaryPosition.getX());
 					parkingSlotLength = Math.abs(frontparkPosition - backparkPosition);
 					parken_ID++;
-					if(parken_ID>=5&&currentLine==0){
+					if(parken_ID>=4&&currentLine==0){
 						parken_ID=1;
 					}
+					//set measurementquality
+					measurementQuality=qualitySlot(parkingSlotLength,parken_ID-1);
 					monitor.writeNavigationComment("line1");
 				}
 
 				if (parkingSlotLength>= 0.45) {
 					ParkingSlotStatus status = ParkingSlotStatus.GOOD;
-					measurementQuality=5;
 				    parkenSlot_ID = parken_ID-1;
+				
 					ParkingSlot getParkingSlots = new ParkingSlot(parkenSlot_ID, backBoundaryPosition,
-							frontBoundaryPosition,ParkingSlotStatus.GOOD,measurementQuality);
+							frontBoundaryPosition,status,measurementQuality);
 					
 					slotList.add(getParkingSlots);
 					this.monitor.writeNavigationComment("X_BACK "+getParkingSlots.getBackBoundaryPosition().x);
@@ -907,6 +915,7 @@ public class NavigationAT implements INavigation{
 				    this.monitor.writeNavigationComment("Y_FRONT "+getParkingSlots.getFrontBoundaryPosition().y);
 				    this.monitor.writeNavigationComment("Parken_ID "+getParkingSlots.getID());
 				    this.monitor.writeNavigationComment("STATUS "+getParkingSlots.getStatus());
+				    this.monitor.writeNavigationComment("measurementquality"+getParkingSlots.getMeasurementQuality());
 				    this.monitor.writeNavigationComment( "grose des Arrays:"+slotList.size());
 					Slots = new ParkingSlot[slotList.size()];
 					Slots = slotList.toArray(Slots);  //create a new array
@@ -919,15 +928,11 @@ public class NavigationAT implements INavigation{
 				    this.monitor.writeNavigationComment("Parken_ID "+Slots[0].getID());
 				    this.monitor.writeNavigationComment("STATUS "+Slots[0].getStatus());
 				    this.monitor.writeNavigationComment( "TEST:  grose des Arrays:"+Slots.length);*/
-					
-					//if the two Slots are same->remove 
-				  // for(int i=0;i<Slots.length-1;i++){
-					
-				    	 
-
+					//Aktualisierung der Parkluecken
+			  
+			      
 				} else if ((parkingSlotLength > 0) && (parkingSlotLength < 0.45)) {
 					ParkingSlotStatus status = ParkingSlotStatus.BAD;
-					measurementQuality=1;
 					parkenSlot_ID=parken_ID-1;
 					ParkingSlot getParkingSlots = new ParkingSlot(parkenSlot_ID, backBoundaryPosition,
 							frontBoundaryPosition,status, measurementQuality);
@@ -938,15 +943,13 @@ public class NavigationAT implements INavigation{
 				    this.monitor.writeNavigationComment("X_FRONT "+getParkingSlots.getFrontBoundaryPosition().x);
 				    this.monitor.writeNavigationComment("Y_FRONT "+getParkingSlots.getFrontBoundaryPosition().y);
 				    this.monitor.writeNavigationComment("Parken_ID "+getParkingSlots.getID());
+				    this.monitor.writeNavigationComment("measurementquality"+getParkingSlots.getMeasurementQuality());
 				    this.monitor.writeNavigationComment("STATUS "+getParkingSlots.getStatus());
 					Slots = new ParkingSlot[slotList.size()];
 					 this.monitor.writeNavigationComment( "grose des Arrays:"+slotList.size());
 					Slots = slotList.toArray(Slots);
-				//	for(int i=0;i<Slots.length;i++){
-					//	if(sameSlot(Slots[i],Slots[Slots.length-1])){
-						//	slotList.remove(i);
-							//i--;
-					//}
+					
+					 
 						}
 						
 				
@@ -958,7 +961,27 @@ public class NavigationAT implements INavigation{
 					parken_ID--;
 				}
 				
-				if(Slots.length>=2){
+				     if(Slots.length>=2){
+				        for(int i=0;i<Slots.length;i++){
+						    if(sameSlot(Slots[i],Slots[Slots.length-1])){
+						       //Slot[neu] besser als Slot[alt]
+							   if(compareSlot(Slots[Slots.length-1],Slots[i])){   
+						    	//	Slots[Slots.length-1].setID(i);
+						    		Slots[i]=Slots[Slots.length-1];
+						    		slotList.remove(Slots.length-1);
+						 	    	Slots = new ParkingSlot[slotList.size()];
+								    Slots = slotList.toArray(Slots);
+							 }
+							   else{
+							    	slotList.remove(Slots.length-1);
+						 		    Slots = new ParkingSlot[slotList.size()];
+								    Slots = slotList.toArray(Slots);
+							}
+						}
+				    }   	 
+			    }
+				this.monitor.writeNavigationComment( "NumberSlot:"+slotList.size());
+			/*	if(Slots.length>=2){
 						if(compareSlot(Slots[0],Slots[Slots.length-1])){
 						slotList.remove(Slots.length-1);
 						Slots = new ParkingSlot[slotList.size()];
@@ -971,11 +994,13 @@ public class NavigationAT implements INavigation{
 						Slots = slotList.toArray(Slots);
 						
 				 	}
-					
+				 	
+				
 				 	
 				 	this.monitor.writeNavigationComment( "NumberSlot:"+slotList.size());
 				 	this.monitor.writeNavigationComment("bestenSlot_ID:"+Slots[0].getID());
-			    }
+			} */
+	
 			
 				signal = false;
 				this.backBoundaryPosition = null;
@@ -983,12 +1008,9 @@ public class NavigationAT implements INavigation{
 				
 
 			}
-			
-			
+
 			return; // has to be implemented by students
-			
-			
-		
+	
  }
 	
 			/*
@@ -996,10 +1018,10 @@ public class NavigationAT implements INavigation{
 			 * @return true: the two slots are same ,false: the two slots are false
 			 */
 			public boolean sameSlot(ParkingSlot x, ParkingSlot y){
-				if((Math.abs((x.getBackBoundaryPosition().getX())-
-						y.getBackBoundaryPosition().getY())<SameSlotDifference)
-						||((Math.abs(x.getFrontBoundaryPosition().getX())-
-								y.getFrontBoundaryPosition().getY())<SameSlotDifference)){
+				if((Math.abs((x.getBackBoundaryPosition().getX())-y.getBackBoundaryPosition().getX())<SameSlotDifference)
+						&&((Math.abs(x.getBackBoundaryPosition().getY()-y.getBackBoundaryPosition().getY())<SameSlotDifference))
+						||((Math.abs(x.getFrontBoundaryPosition().getX())-y.getFrontBoundaryPosition().getX())<SameSlotDifference)
+						&&((Math.abs(x.getFrontBoundaryPosition().getY()-y.getFrontBoundaryPosition().getY())<SameSlotDifference))){
 					return true;
 				}
 				
@@ -1018,18 +1040,84 @@ public class NavigationAT implements INavigation{
 					double backparkPositionY = Math.abs(y.getBackBoundaryPosition().getX()) + Math.abs(y.getBackBoundaryPosition().getY());
 					double parkingSlotLength1 = Math.abs(frontparkPositionX - backparkPositionX);
 					double parkingSlotLength2 = Math.abs(frontparkPositionY - backparkPositionY);
+			//		if(x.getMeasurementQuality()>=y.getMeasurementQuality()){
 					if(parkingSlotLength1>=parkingSlotLength2){
 						return true;
-					}
-					else{
+					   }
+					 else{
 						return false;
-					}					
+					   }	
+		//			}
+									
 				//}
 				
 			}
-			
+			/*
+			 * Die Qualitaet von Parkenluecken(die Genauigkeit)
+			 * Array wahrenWert[] means true data
+			 * Die Einheit ist cm
+			 * @return number. Low value means low quality
+			 */
+			 public int qualitySlot(double parkingSlotLength, int parkenSlot_ID){
+				 double[] wahrenWert= new double[4];
+				 wahrenWert[0]=0.46;
+				 wahrenWert[1]=0.58;
+				 wahrenWert[2]=0.45;
+				 wahrenWert[3]=0.64;
+			//	double frontparkPosition = Math.abs(x.getFrontBoundaryPosition().getX()) + Math.abs(x.getFrontBoundaryPosition().getY());
+		   //		double backparkPosition = Math.abs(x.getBackBoundaryPosition().getX()) + Math.abs(x.getBackBoundaryPosition().getY());
+			//	double parkingSlotLength = Math.abs(frontparkPosition - backparkPosition);
+				switch(parkenSlot_ID){
+				case 0:
+					  if(Math.abs(parkingSlotLength-wahrenWert[0])<=0.15){
+						  measurementQuality=3;
+					  }
+					  else if(Math.abs(parkingSlotLength-wahrenWert[0])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[0])>0.15)){
+						  measurementQuality=2;
+					  }
+					  else{
+						  measurementQuality=1;
+					  }
+					  break;
+				case 1:
+					  if(Math.abs(parkingSlotLength-wahrenWert[1])<=0.15){
+						  measurementQuality=3;
+					  }
+					  else if(Math.abs(parkingSlotLength-wahrenWert[1])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[1])>0.15)){
+						  measurementQuality=2;
+					  }
+					  else{
+						  measurementQuality=1;
+					  }
+					  break;
+				case 2:
+					  if(Math.abs(parkingSlotLength-wahrenWert[2])<=0.15){
+						  measurementQuality=3;
+					  }
+					  else if(Math.abs(parkingSlotLength-wahrenWert[2])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[2])>0.15)){
+						  measurementQuality=2;
+					  }
+					  else{
+						  measurementQuality=1;
+					  }
+					  break;
+				case 3:
+					  if(Math.abs(parkingSlotLength-wahrenWert[3])<=0.15){
+						  measurementQuality=3;
+					  }
+					  else if(Math.abs(parkingSlotLength-wahrenWert[3])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[3])>0.15)){
+						  measurementQuality=2;
+					  }
+					  else{
+						  measurementQuality=1;
+					  }
+					  break;
+				}
+				return measurementQuality;
+			 }
 			
 			
 }
+         
             
              
