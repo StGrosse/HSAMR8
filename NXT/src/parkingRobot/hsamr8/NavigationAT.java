@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import lejos.geom.Line;
 import lejos.geom.Point;
-import lejos.nxt.Sound;
+//import lejos.nxt.Sound;
 import lejos.robotics.navigation.Pose;
 
 
@@ -15,7 +15,7 @@ import parkingRobot.IMonitor;
 
 
 import parkingRobot.hsamr8.NavigationThread;
-import parkingRobot.hsamr8.GuidanceAT;
+//import parkingRobot.hsamr8.GuidanceAT;
 
 
 /**
@@ -95,15 +95,15 @@ public class NavigationAT implements INavigation{
 	/**
 	 * robot specific constant: radius of left wheel
 	 */
-	static final double LEFT_WHEEL_RADIUS	= 	0.028; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double LEFT_WHEEL_RADIUS	= 	0.0276; // only rough guess, to be measured exactly and maybe refined by experiments
 	/**
 	 * robot specific constant: radius of right wheel
 	 */
-	static final double RIGHT_WHEEL_RADIUS	= 	0.028; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double RIGHT_WHEEL_RADIUS	= 	0.0276; // only rough guess, to be measured exactly and maybe refined by experiments
 	/**
 	 * robot specific constant: distance between wheels
 	 */
-	static final double WHEEL_DISTANCE		= 	0.119; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double WHEEL_DISTANCE		= 	0.1112; // only rough guess, to be measured exactly and maybe refined by experiments
 
 	
 	/**
@@ -188,7 +188,7 @@ public class NavigationAT implements INavigation{
 	
 	double parkenGutLength = 0.02;
 	double parkenGutLength1 = 0.05;//distance from centerl to abstandsensor
-	double parkenGutLength2 = 0.15;
+	double parkenGutLength2 = 0.10;
 	
 	double frontparkPosition = 0;
 	double backparkPosition = 0;
@@ -357,15 +357,11 @@ public class NavigationAT implements INavigation{
 			angleResult 	= this.pose.getHeading() + w * deltaT;
 			if (angleResult >Math.PI * 1.77) {
 				angleResult = 0;
-				if(this.parkingSlotDetectionIsOn){
-					xResult = 0.02;
-					yResult = 0.0;
-				}
+				xResult = 0.02;
+				yResult = 0.0;
 				currentLine=0;
 			}
 		}
-		
-		if(this.parkingSlotDetectionIsOn){
 		//line0
 		if((this.pose.getHeading() < Math.PI * 0.10)&& (this.pose.getHeading() >- Math.PI * 0.10)){
 		         currentLine=0;
@@ -761,7 +757,7 @@ public class NavigationAT implements INavigation{
 			//}
 		   }
 		}
-		}
+		
 		this.pose.setLocation((float) xResult, (float) yResult);
 		this.pose.setHeading((float) angleResult);
 		
@@ -823,7 +819,7 @@ public class NavigationAT implements INavigation{
 					//parkluecke0 und 1
 					monitor.writeNavigationComment("parkenLine0");
 				   if ((parkenSlotSuch0 == false) && (this.frontSideSensorDistance >280)) {
-						backBoundaryPosition = new Point((float) (this.pose.getX()-parkenGutLength1), this.pose.getY());
+						backBoundaryPosition = new Point((float) (this.pose.getX()-parkenGutLength), this.pose.getY());
 						monitor.writeNavigationComment("back");
 						//backBoundaryPosition = new Point(this.pose.getX()+parkenGutLength1, this.pose.getY());
 						//parkenSlotSuch0 = true;
@@ -838,7 +834,7 @@ public class NavigationAT implements INavigation{
 
 					}
 					if ((parkenSlotSuch0 == true) && (this.frontSideSensorDistance <180)) {
-						frontBoundaryPosition =new Point((float) (this.pose.getX()-parkenGutLength2), this.pose.getY());
+						frontBoundaryPosition =new Point((float) (this.pose.getX()-parkenGutLength1), this.pose.getY());
 						parkenSlotSuch0 = false;
 						signal = true;
                         monitor.writeNavigationComment("front");
@@ -855,7 +851,7 @@ public class NavigationAT implements INavigation{
 						
 				}
 					if ((parkenSlotSuch1 == true) && (this.frontSideSensorDistance < 220)) {
-						frontBoundaryPosition = new Point(this.pose.getX(),(float) (this.pose.getY() +parkenGutLength1));
+						frontBoundaryPosition = new Point(this.pose.getX(),(float) (this.pose.getY()+parkenGutLength));
 						//frontBoundaryPosition = new Point(this.pose.getX(),this.pose.getY());
 						monitor.writeNavigationComment("front_Line1");
 						parkenSlotSuch1 = false;
@@ -960,7 +956,7 @@ public class NavigationAT implements INavigation{
 							frontBoundaryPosition,status, measurementQuality);
 					parken_ID--;
 				}
-				
+				  /*//aktualiseung 
 				     if(Slots.length>=2){
 				        for(int i=0;i<Slots.length;i++){
 						    if(sameSlot(Slots[i],Slots[Slots.length-1])){
@@ -979,7 +975,7 @@ public class NavigationAT implements INavigation{
 							}
 						}
 				    }   	 
-			    }
+			    }*/
 				this.monitor.writeNavigationComment( "NumberSlot:"+slotList.size());
 			/*	if(Slots.length>=2){
 						if(compareSlot(Slots[0],Slots[Slots.length-1])){

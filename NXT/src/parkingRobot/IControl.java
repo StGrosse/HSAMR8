@@ -114,6 +114,6 @@ public interface IControl {
 	 * @param start start pose
 	 * @param ziel destination pose
 	 */
-	public void setPath(double[] path, boolean inv, Pose start, Pose ziel);
+	public void setPath(float[] path, boolean inv, Pose start, Pose ziel);
 }
 

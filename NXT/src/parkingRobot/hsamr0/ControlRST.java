@@ -195,7 +195,7 @@ public class ControlRST implements IControl {
 		return false;
 	}
 	
-	public void setPath(double[]path, boolean inv, Pose start, Pose ziel){}
+	public void setPath(float[]path, boolean inv, Pose start, Pose ziel){}
 	// Private methods
 	
 	/**

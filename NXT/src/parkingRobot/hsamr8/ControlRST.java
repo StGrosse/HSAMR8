@@ -2,7 +2,7 @@ package parkingRobot.hsamr8;
 
 
 import lejos.robotics.navigation.Pose;
-import lejos.nxt.Battery;
+//import lejos.nxt.Battery;
 import parkingRobot.IControl;
 import parkingRobot.IMonitor;
 import parkingRobot.IPerception;
@@ -29,29 +29,30 @@ public class ControlRST implements IControl {
 	 * {@value}5 --- stop
 	 * {@value}6 --- Beispielsequenz 1.Verteidigung
 	 * {@value}7 --- test setpose
+	 * {@value}8 --- test pathctrl
 	 */
-	int option = 2; 		
+	int option = 8; 		
 	
 	//general constants:
 	static final int u_r_max =40; 							//power maximum
-	static final double r_robot = 5.65; 					//radius of the robot in cm
-	static final double r_wheel = 2.7; 						//radius of the wheels in cm
+	static final float r_robot = 5.56f; 					//radius of the robot in cm
+	static final float r_wheel = 2.76f; 						//radius of the wheels in cm
 	static final double distPerTurn = 2*Math.PI*r_wheel; 	//distance per wheel turn in cm
 	static final double distPerDeg = distPerTurn/360; 		//distance per degree in cm
-	static final double angVelPerPercentR = 8.7; 			//slope of v=f(power) (left wheel)@u=8V
-	static final double angVelPerPercentL = 8.5;			//slope of v=f(power) (right wheel)@u=8V
-	static final double offsetAngVelPerPercentL = -80.0; 	//offset of v=f(power) (left wheel)@u=8V
-	static final double offsetAngVelPerPercentR = -80.0; 	//offset of v=f(power) (right wheel)@u=8V
+	static final float angVelPerPercentR = 8.7f; 			//slope of v=f(power) (left wheel)@u=8V
+	static final float angVelPerPercentL = 8.5f;			//slope of v=f(power) (right wheel)@u=8V
+	static final float offsetAngVelPerPercentL = -80.0f; 	//offset of v=f(power) (left wheel)@u=8V
+	static final float offsetAngVelPerPercentR = -80.0f; 	//offset of v=f(power) (right wheel)@u=8V
 	//static final int akku_max = 0;							//maximum voltage of akku in mV
 	
 	//parameter for exec_LINECTRL_ALGO_opt2
-	static final double kp_slow = 0.003; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
-	static final double kp_fast = 0.0005;
+	static final float kp_slow = 0.003f; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
+	static final float kp_fast = 0.0005f;
 	//static final double ki = 0.000; //Integrierbeiwert PID Linefollower absolut:0.0082, neu:0.000
-	static final double kd_fast = 0.02; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
-	static final double kd_slow = 0.028;//0.024
-	static final double V_FAST=0.2;
-	static final double V_SLOW=0.15;
+	static final float kd_fast = 0.02f; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
+	static final float kd_slow = 0.028f;//0.024
+	static final float V_FAST=0.2f;
+	static final float V_SLOW=0.15f;
 	
 	//global variables for exec_LINECTRL_ALGO_opt2
 	int v=0;	
@@ -147,13 +148,13 @@ public class ControlRST implements IControl {
 	boolean ParkStatus=false;
 	boolean firstSetPose=true;
 	int setPosePhase=1;
-	static final double v_sp=0.1;
-	static final double kp_sp=20.0;
-	static final double kd_sp=30.0;//höherer D-Anteil verhindert Schwingen nicht, verlangsamt es nur
+	static final float v_sp=0.05f;
+	static final float kp_sp=20.0f;//20 10
+	static final float kd_sp=40.0f;//30 20höherer D-Anteil verhindert Schwingen nicht, verlangsamt es nur
 	double eold_sp=0;
 	double strecke=0;
 	double toleranz=0;
-	static final double ABWEICHUNG=0.02;
+	static final float ABWEICHUNG=0.01f;
 	
 	ControlMode currentCTRLMODE = null;
 	
@@ -161,11 +162,11 @@ public class ControlRST implements IControl {
 	EncoderSensor controlLeftEncoder     = null;
 		
 	//ParkControl variables
-	double startTime =0;
+	float startTime =0;
 	double T=0;
-	double[] path=new double[4];
+	float[] path=new float[4];
 	double[] x_t=new double[6];
-	double[] y_t=new double[16];
+	//double[] y_t=new double[16];
 	boolean inv=false;
 	boolean firstPark=false;
 	double currentTime=0;//aktuelle Zeit in s
@@ -210,13 +211,19 @@ public class ControlRST implements IControl {
 		monitor.addControlVar("LeftMotor");*/
 		//MONITOR für Dimensionierung PID-Regler V/W-Control linkes Rad
 		monitor.addControlVar("wRadLinks");
+		monitor.addControlVar("wZielL");
 		//monitor.addControlVar("FehlerLinks");
 		//monitor.addControlVar("PWLinks");*/
 		//MONITOR für Dimensionierung PID-Regler V/W-Control rechtes Rad
 		monitor.addControlVar("wRadRechts");
 		//monitor.addControlVar("FehlerRechts");
 		//monitor.addControlVar("PWRechts");
-		monitor.addControlVar("Fehler setpose");
+		//monitor.addControlVar("Fehler setpose");
+		//monitor.addControlVar("v");
+		//monitor.addControlVar("w");
+		
+		monitor.addControlVar("wZielR");
+		
 		
 		this.ctrlThread = new ControlThread(this);
 		
@@ -269,7 +276,7 @@ public class ControlRST implements IControl {
 		this.currentPosition = currentPosition;
 	}
 	
-	public void setPath(double[] path, boolean inv, Pose start, Pose ziel){
+	public void setPath(float[] path, boolean inv, Pose start, Pose ziel){
 		this.path=path;
 		this.inv = inv;
 		this.startPosition = start;
@@ -288,7 +295,7 @@ public class ControlRST implements IControl {
 	 * set start time
 	 */
 	public void setStartTime(int startTime){
-		this.startTime = startTime/100.0;
+		this.startTime = startTime/1000.0f;
 	}
 	
 	/**
@@ -349,7 +356,7 @@ public class ControlRST implements IControl {
 	 */
 	private void update_PARKCTRL_Parameter(){
 		setPose(this.navigation.getPose());
-		this.currentTime=System.currentTimeMillis()/100.0;
+		this.currentTime=System.currentTimeMillis()/1000.0;
 	}
 
 	/**
@@ -388,11 +395,11 @@ public class ControlRST implements IControl {
     	leftMotor.forward();
     	rightMotor.forward();
     	double kp_l=0.031;
-    	double ki_l=0.00075;//bei TA=100: 0.00075
-    	double kd_l=0.015;//bei TA=100:0.015
+    	double ki_l=0.00120;//bei TA=100: 0.00075
+    	double kd_l=0.082;//bei TA=100:0.015
     	double kp_r=0.031;
-    	double ki_r=0.00075;
-    	double kd_r=0.016;//bei TA=100:0.016
+    	double ki_r=0.00120;
+    	double kd_r=0.085;//bei TA=100:0.016
     	
 		double [] speed = this.drive(this.velocity, this.angularVelocity); //berechne benötigte Winkelgeschwindigkeiten
 		this.monitor.writeControlComment("Zielgeschwindigkeit: "+speed[1]);
@@ -450,17 +457,20 @@ public class ControlRST implements IControl {
 		this.eoldr_vw=e_r;
 		
 		//Ausschriften Dimensionierung links
+		monitor.writeControlVar("wZielL", ""+speed[0]);
 		monitor.writeControlVar("wRadLinks", ""+w_akt_l);
 		//monitor.writeControlVar("FehlerLinks","" + e_l);
 		//monitor.writeControlVar("PWLinks","" + (int)pw_l);
 		
 		//Ausschriften Dimensionierung rechts
+		monitor.writeControlVar("wZielR",  ""+speed[1]);
 		monitor.writeControlVar("wRadRechts",""+w_akt_r);
 		//monitor.writeControlVar("FehlerRechts",""+e_r);
 		//monitor.writeControlVar("PWRechts",""+(int)pw_r);
 		
 		//Ansteuerung der Motoren
 		monitor.writeControlComment("pulsweite links:"+pw_l);
+		monitor.writeControlComment("pulsweite rechts:"+pw_r);
 		leftMotor.setPower((int)pw_l);
 		rightMotor.setPower((int)pw_r);
 		
@@ -577,14 +587,24 @@ public class ControlRST implements IControl {
 	 * PARKING along the generated path
 	 */
 	private void exec_PARKCTRL_ALGO(){
-		//für rückwärts einparken muss v0,v,omega negiert werden, sonst bleibt die Planung gleich
+		monitor.writeControlComment("parkcontrol aufgerufen");
+		//für rückwärts einparken muss v,omega negiert werden, sonst bleibt die Planung gleich
+		//für die Lücke oben muss v0 negiert werden
+		//für seitliche Lücke muss omega negiert werden
 		if(this.firstPark){
-			double v0=V_SLOW;
+			double v0;
+			if(inv){
+				v0=-0.05;
+			}
+			else{
+				v0=0.05;
+			}
+			
 			float xs=this.startPosition.getX();
 			float ys=this.startPosition.getY();
 			float xz=this.destination.getX();
 			float yz=this.destination.getY();
-			this.T=Math.sqrt(Math.pow((xz-xs),2)+Math.pow((yz-ys),2))/(Math.abs(v0)*0.67);
+			this.T=Math.sqrt(Math.pow((xz-xs),2)+Math.pow((yz-ys),2))/(Math.abs(v0)*1);
 			this.x_t[5]=6*(-T*v0 - xs + xz)/(Math.pow(T, 5));
 			this.x_t[4]=15*(T*v0 + xs - xz)/(Math.pow(T, 4));
 			this.x_t[3]=10*(-T*v0 - xs + xz)/(Math.pow(T,3));
@@ -592,11 +612,38 @@ public class ControlRST implements IControl {
 			this.x_t[1]=v0;
 			this.x_t[0]=xs;
 			this.firstPark=false;
+			monitor.writeControlComment("Parkcontrol initialisiert, T: "+T);
+			this.setStartTime((int)System.currentTimeMillis());
+			this.resetVW();
+			this.stop();
+			return;
 		}
 		double t=this.currentTime-this.startTime;
-		if((t-T)<0.05){
-			this.stop();
-			this.ParkStatus=true;
+		monitor.writeControlComment("t: "+t);
+		if((T-t)<0.0){
+			double currentHeading=this.currentPosition.getHeading();
+	    	while(currentHeading<0){
+	    		currentHeading+=2*Math.PI;
+	    	}
+			double deltaphi=currentHeading-this.destination.getHeading();
+    		if(Math.abs(deltaphi)>Math.PI){
+    			if(deltaphi>0) deltaphi-=2*Math.PI;
+    			else if(deltaphi<0) deltaphi+=2*Math.PI;
+    		}
+    		this.monitor.writeControlComment("deltaphi:"+ deltaphi);
+    		if(Math.abs(deltaphi)>Math.PI/120 && !ParkStatus){
+    			this.setVelocity(0.0);
+    			if(deltaphi< 0)this.setAngularVelocity(+Math.PI/6);
+    			else if(deltaphi>0)this.setAngularVelocity(-Math.PI/6);
+    			this.innerLoop();
+    		}
+    		
+    		else{
+    			this.monitor.writeControlComment("Ziel erreicht, abw: phi: "+deltaphi+" x: "+this.currentPosition.getX()+" y: "+(this.currentPosition.getY()));
+    			this.ParkStatus=true;
+    			//this.resetVW();
+    			//this.stop();//testen   			
+    		}
 			return;
 		}
 		double x=0;
@@ -608,26 +655,36 @@ public class ControlRST implements IControl {
 		for(int j=0; j<this.x_t.length;j++){//berechne Wert x(t)
 			x+=this.x_t[j]*Math.pow(t, j);
 		}
-		for(int k=1; k<this.x_t.length-1;k++){//berechne Wert von x'(t)
+		/*for(int k=1; k<this.x_t.length-1;k++){//berechne Wert von x'(t)
 			dx+=k*this.x_t[k]*Math.pow(t, k-1);
-		}
-		for(int l=2; l<this.x_t.length-2;l++){//berechne Wert von x''(t)
+		}*/
+		dx=5*x_t[5]*Math.pow(t, 4)+4*x_t[4]*Math.pow(t, 3)+3*x_t[3]*Math.pow(t, 2)+2*x_t[2]*t+x_t[1];
+		/*for(int l=2; l<this.x_t.length-2;l++){//berechne Wert von x''(t)
 			d2x+=l*(l-1)*x_t[l]*Math.pow(t, l-2);
-		}
-		for(int i=0; i<this.path.length;i++){//berechne Wert von y(t)
+		}*/
+		d2x=20*x_t[5]*Math.pow(t,3)+12*x_t[4]*Math.pow(t, 2)+6*x_t[3]*t+2*x_t[2];
+		/*for(int i=0; i<this.path.length;i++){//berechne Wert von y(t)
 			y+=path[i]*Math.pow(x,i);
-		}
-		for(int m=1; m<this.path.length-1;m++){
-			dy_x+=m*this.path[m]*Math.pow(x, m-1);
-		}
+		}*/
+		dy_x=3*path[3]*Math.pow(x, 2)+2*path[2]*x+path[1];
 		double d2y_x=6*this.path[3]*x+2*this.path[2];
 		double dy_t=dy_x*dx;
 		double d2y_t=d2y_x*Math.pow(dx, 2)+dy_x*d2x;//Regel von Faa die Bruno
-		double v=Math.sqrt(dx*dx+dy_t*dy_t);
+		this.monitor.writeControlComment("dx: "+dx+" dy_t:"+dy_t);
+		double v;
+		if(inv){
+			v=-Math.sqrt(dx*dx+dy_t*dy_t);
+		}
+		else{
+			v=Math.sqrt(dx*dx+dy_t*dy_t);
+		}
+		
+		monitor.writeControlVar("v", ""+v);
 		this.setVelocity(v);
-		double w=Math.pow(v,2.5)/(dx*d2y_t-d2x*dy_t);
-		w=w>Math.PI?Math.PI:w; //Stellgrößenbegrenzung, da Polstelle im Wendepunkt der Kurve nicht umsetzbar
+		double w=1/(v*v)*(dx*d2y_t-d2x*dy_t);	
+		
 		this.setAngularVelocity(w);
+		monitor.writeControlVar("w",""+w);
 		this.innerLoop();		
 	}
 	
@@ -726,11 +783,52 @@ public class ControlRST implements IControl {
     		
     	}
     	if(option==7){
-			this.destination.setLocation((float)0.8, (float)0.0);
+			this.destination.setLocation((float)1.5, (float)0.0);
 			this.destination.setHeading((float)0.0);
 			this.update_SETPOSE_Parameter();
 			this.exec_SETPOSE_ALGO();
 		}
+    	if(option==8){
+    		if(phase==1 && !ParkStatus){
+    			this.destination.setLocation(0.15f, 0.0f);
+    			this.destination.setHeading(0.0f);
+    			this.update_SETPOSE_Parameter();
+    			this.exec_SETPOSE_ALGO();
+    		}
+    		else if(phase==1 && ParkStatus){
+    			//this.stop();
+    			//this.resetVW();
+    			phase=2; 
+    			ParkStatus=false;
+    			monitor.writeControlComment("Ende Phase 1");
+    			
+    			float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
+    			this.setPath(a, false, new Pose(0.15f,0.02f,0.0f), new Pose(0.6f,-0.3f,0.0f));
+    			
+    		}
+    		if(phase==2 && !ParkStatus){
+    			monitor.writeControlComment("Start Phase2");
+    			this.update_PARKCTRL_Parameter();
+    			this.exec_PARKCTRL_ALGO();  			
+    		}
+    		else if(phase==2 && ParkStatus){
+    			this.stop();
+    			this.resetVW();
+    			ParkStatus=false;
+    			phase=3;
+    			float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
+    			this.setPath(a, true, new Pose(0.6f,-0.3f,0.0f),new Pose(0.15f,0.02f,0.0f));
+    			  		   			
+    		}
+    		if(phase==3 && !ParkStatus){
+    			monitor.writeControlComment("Start Phase3");
+    			this.update_PARKCTRL_Parameter();
+    			this.exec_PARKCTRL_ALGO();
+    		}
+    		else if(phase==3 && ParkStatus){
+    			this.stop();
+    		}
+    	}
     }
     /**
 	 * DRIVING along black line
@@ -989,8 +1087,8 @@ public class ControlRST implements IControl {
 		}
 	}
 	private void stop(){
-		//this.setAngularVelocity(0.0);
-		//this.setVelocity(0.0);
+		this.setAngularVelocity(0.0);
+		this.setVelocity(0.0);
 		this.leftMotor.stop();
 		this.rightMotor.stop();
 	}
