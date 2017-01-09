@@ -4,7 +4,8 @@ import java.util.ArrayList;
 
 import lejos.geom.Line;
 import lejos.geom.Point;
-//import lejos.nxt.Sound;
+import lejos.nxt.LCD;
+import lejos.nxt.Sound;
 import lejos.robotics.navigation.Pose;
 
 
@@ -15,7 +16,7 @@ import parkingRobot.IMonitor;
 
 
 import parkingRobot.hsamr8.NavigationThread;
-//import parkingRobot.hsamr8.GuidanceAT;
+import parkingRobot.hsamr8.GuidanceAT;
 
 
 /**
@@ -95,15 +96,15 @@ public class NavigationAT implements INavigation{
 	/**
 	 * robot specific constant: radius of left wheel
 	 */
-	static final double LEFT_WHEEL_RADIUS	= 	0.0276; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double LEFT_WHEEL_RADIUS	= 	0.028; // only rough guess, to be measured exactly and maybe refined by experiments
 	/**
 	 * robot specific constant: radius of right wheel
 	 */
-	static final double RIGHT_WHEEL_RADIUS	= 	0.0276; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double RIGHT_WHEEL_RADIUS	= 	0.028; // only rough guess, to be measured exactly and maybe refined by experiments
 	/**
 	 * robot specific constant: distance between wheels
 	 */
-	static final double WHEEL_DISTANCE		= 	0.1112; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double WHEEL_DISTANCE		= 	0.119; // only rough guess, to be measured exactly and maybe refined by experiments
 
 	
 	/**
@@ -264,8 +265,14 @@ public class NavigationAT implements INavigation{
 		this.updateSensors();
 		this.calculateLocationLocation();
 		// Detection->close
-		if (this.parkingSlotDetectionIsOn)
-			this.detectParkingSlot();
+		if (this.parkingSlotDetectionIsOn) 
+			try{
+				this.detectParkingSlot();
+			}
+			catch(NullPointerException ne){
+				LCD.clear();
+				LCD.drawString("nullpointer", 0, 0);
+			}
 		
 		
 		// MONITOR (example)		
@@ -357,7 +364,7 @@ public class NavigationAT implements INavigation{
 			angleResult 	= this.pose.getHeading() + w * deltaT;
 			if (angleResult >Math.PI * 1.77) {
 				angleResult = 0;
-				xResult = 0.02;
+				xResult = 0.0;
 				yResult = 0.0;
 				currentLine=0;
 			}
@@ -811,15 +818,15 @@ public class NavigationAT implements INavigation{
 	/**
 	 * 	detects parking slots and manage them by initializing new slots, re-characterizing old slots or merge old and detected slots. 
 	 */
-	private void detectParkingSlot(){
+	private void detectParkingSlot() throws NullPointerException{
 		
 		switch (currentLine) {
 			case 0:
 				if (this.pose.getX() <1.75) {
 					//parkluecke0 und 1
 					monitor.writeNavigationComment("parkenLine0");
-				   if ((parkenSlotSuch0 == false) && (this.frontSideSensorDistance >280)) {
-						backBoundaryPosition = new Point((float) (this.pose.getX()-parkenGutLength), this.pose.getY());
+				   if ((parkenSlotSuch0 == false) && (this.backSideSensorDistance >280)) {
+						backBoundaryPosition = new Point((float) (this.pose.getX()-parkenGutLength1), this.pose.getY());
 						monitor.writeNavigationComment("back");
 						//backBoundaryPosition = new Point(this.pose.getX()+parkenGutLength1, this.pose.getY());
 						//parkenSlotSuch0 = true;
@@ -833,8 +840,8 @@ public class NavigationAT implements INavigation{
 					//	}
 
 					}
-					if ((parkenSlotSuch0 == true) && (this.frontSideSensorDistance <180)) {
-						frontBoundaryPosition =new Point((float) (this.pose.getX()-parkenGutLength1), this.pose.getY());
+					if ((parkenSlotSuch0 == true) && (this.backSideSensorDistance <170)) {
+						frontBoundaryPosition =new Point((float) (this.pose.getX()), this.pose.getY());
 						parkenSlotSuch0 = false;
 						signal = true;
                         monitor.writeNavigationComment("front");
@@ -844,13 +851,13 @@ public class NavigationAT implements INavigation{
 			case 1:
 				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.6)) {
 					monitor.writeNavigationComment("parkenLine1");
-					if ((parkenSlotSuch1 == false) && (this.frontSideSensorDistance > 280)) {
+					if ((parkenSlotSuch1 == false) && (this.backSideSensorDistance > 280)) {
 						backBoundaryPosition = new Point(this.pose.getX(), (float) (this.pose.getY() +parkenGutLength2));
 						monitor.writeNavigationComment("back_Line1");
 						parkenSlotSuch1 = true;
 						
 				}
-					if ((parkenSlotSuch1 == true) && (this.frontSideSensorDistance < 220)) {
+					if ((parkenSlotSuch1 == true) && (this.backSideSensorDistance < 220)) {
 						frontBoundaryPosition = new Point(this.pose.getX(),(float) (this.pose.getY()+parkenGutLength));
 						//frontBoundaryPosition = new Point(this.pose.getX(),this.pose.getY());
 						monitor.writeNavigationComment("front_Line1");
@@ -865,7 +872,7 @@ public class NavigationAT implements INavigation{
 					monitor.writeNavigationComment("parkenLine4");
 					if ((parkenSlotSuch4 == false) && (this.backSideSensorDistance > 380)) {
 						monitor.writeNavigationComment("back_Line4");
-						backBoundaryPosition = new Point((float) (this.pose.getX()+parkenGutLength1), this.pose.getY());
+						backBoundaryPosition = new Point((float) (this.pose.getX()+parkenGutLength2), this.pose.getY());
 						//backBoundaryPosition = new Point(this.pose.getX() , this.pose.getY());
 						//parkenSlotSuch4 = true;
 						parkenSlotSuch4 = true;
@@ -952,12 +959,16 @@ public class NavigationAT implements INavigation{
 				
 				 else {
 					ParkingSlotStatus status = ParkingSlotStatus.RESCAN;
-					ParkingSlot getParkingSlots = new ParkingSlot(parken_ID, backBoundaryPosition,
-							frontBoundaryPosition,status, measurementQuality);
-					parken_ID--;
+					if(this.backBoundaryPosition!=null && this.frontBoundaryPosition!=null){
+						ParkingSlot getParkingSlots = new ParkingSlot(parken_ID, backBoundaryPosition,
+								frontBoundaryPosition,status, measurementQuality);
+						parken_ID--;
+					}
+					
 				}
-				  /*//aktualiseung 
-				     if(Slots.length>=2){
+				  //aktualiseung 
+				/*
+				     if(Slots.length>4){
 				        for(int i=0;i<Slots.length;i++){
 						    if(sameSlot(Slots[i],Slots[Slots.length-1])){
 						       //Slot[neu] besser als Slot[alt]
@@ -994,7 +1005,7 @@ public class NavigationAT implements INavigation{
 				
 				 	
 				 	this.monitor.writeNavigationComment( "NumberSlot:"+slotList.size());
-				 	this.monitor.writeNavigationComment("bestenSlot_ID:"+Slots[0].getID());
+				 
 			} */
 	
 			

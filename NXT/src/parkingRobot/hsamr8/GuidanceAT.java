@@ -3,11 +3,7 @@
 
 
         Änderungen:
-        - Status UND Modi
-        - weniger Modi zur Vereinfachung
-        - geringfügige Änderungen an EINPARKEN
-        - PARK_THIS implementiert
-        - mehr Zustandsübergäng (hoffentlich jetzt alle)
+        - Ausparken implementiert
 
 
 */
@@ -37,6 +33,7 @@ import parkingRobot.hsamr8.NavigationAT;
 import parkingRobot.hsamr8.PerceptionPMP;
 
 
+
 public class GuidanceAT
 {
 
@@ -44,6 +41,10 @@ public class GuidanceAT
 	 * states for the main finite state machine. This main states are requirements because they invoke different
 	 * display modes in the human machine interface.
 	 */
+	static float [] Koeffizienten = new float [4];
+	static float [] Zielkoordinaten = new float [2];
+    static float [] Startkoordinaten = new float [2];
+
 	public enum CurrentStatus
 	{
 		DRIVING,
@@ -118,15 +119,14 @@ public class GuidanceAT
 		INxtHmi  	hmi        = new HmiPLT(perception, navigation, control, monitor);
 
 
-        float [] Zielkoordinaten = new float [2];
-
+       
 
 		monitor.startLogging();
 
 
 while(true)
 {
-	showData(navigation, perception);
+	//showData(navigation, perception);
 	monitor.writeGuidanceComment("Modus: "+currentModus+" Status: "+currentStatus);
 
     switch( currentStatus )
@@ -144,9 +144,7 @@ while(true)
 					if( lastModus != CurrentModus.SCOUT )
                     {
 						control.setCtrlMode(ControlMode.LINE_CTRL);
-						//testen setpose:
-						navigation.setDetectionState(false);
-						//navigation.setDetectionState(true);
+						navigation.setDetectionState(true);
 					}
 
 					lastModus = currentModus;
@@ -171,16 +169,12 @@ while(true)
 
 					else if(hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW)
 					{
-					    if(control.getParkStatus())    /** nur wenn fertig mit Einparken*/
-						currentModus = CurrentModus.AUSPARKEN;
-						else currentModus = CurrentModus.PARK_NOW;
+						currentModus = CurrentModus.PARK_NOW;
 					}
 
 					else if(hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS)
                     {
-                        if(control.getParkStatus())    /** nur wenn fertig mit Einparken*/
-                        currentModus = CurrentModus.AUSPARKEN;
-                        else currentModus = CurrentModus.PARK_THIS;
+                        currentModus = CurrentModus.PARK_THIS;
 					}
 
 
@@ -191,8 +185,6 @@ while(true)
 
                     case PARK_NOW:
 
-                        float [] werte = new float[3];
-
                         if( lastModus != CurrentModus.PARK_NOW )
                         {
                             control.setCtrlMode(ControlMode.LINE_CTRL);
@@ -202,15 +194,10 @@ while(true)
                         lastModus = currentModus;
 
 
-                        werte = pruefeAufLuecke(navigation.getPose().getX()*100, navigation.getPose().getY()*100, navigation, currentModus,hmi);
-
-                        if(werte[0] == 1)   // Roboter befindet sich im Abstand d (d in pruefeAufLuecke definiert) von der Parklücke
+                        if(pruefeAufLuecke(navigation.getPose().getX(), navigation.getPose().getY(), navigation, currentModus,hmi))   // Roboter befindet sich im Abstand d (d in pruefeAufLuecke definiert) von der Parklücke
                         {
-                            Zielkoordinaten[0] = werte[1];
-                            Zielkoordinaten[1] = werte[2];
                             currentStatus = CurrentStatus.DRIVING;
                             currentModus = CurrentModus.EINPARKEN;
-                            //currentStatus = CurrentStatus.INACTIVE; // zum Testen: Roboter bleibt vor Parklücke stehen
                         }
 
 
@@ -248,8 +235,6 @@ while(true)
 
                     case PARK_THIS:
 
-                        float [] werte1 = new float[3];
-
                         if ( lastModus != CurrentModus.PARK_THIS )
                         {
                             control.setCtrlMode(ControlMode.LINE_CTRL);
@@ -258,15 +243,11 @@ while(true)
 
                         lastModus = currentModus;
 
-                        werte1 = pruefeAufLuecke(navigation.getPose().getX()*100, navigation.getPose().getY()*100, navigation, currentModus,hmi);
 
-                        if(werte1[0] == 1)   // Roboter befindet sich im Abstand d (d in pruefeAufLuecke definiert) von der Parklücke
+                        if(pruefeAufLuecke(navigation.getPose().getX(), navigation.getPose().getY(), navigation, currentModus,hmi))   // Roboter befindet sich im Abstand d (d in pruefeAufLuecke definiert) von der Parklücke
                         {
-                            Zielkoordinaten[0] = werte1[1];
-                            Zielkoordinaten[1] = werte1[2];
-                            //currentStatus = CurrentStatus.DRIVING;
-                            //currentModus = CurrentModus.EINPARKEN;
-                            currentStatus = CurrentStatus.INACTIVE; // zum Testen: Roboter bleibt vor Parklücke stehen
+                            currentStatus = CurrentStatus.DRIVING;
+                            currentModus = CurrentModus.EINPARKEN;
                         }
 
 
@@ -305,14 +286,24 @@ while(true)
 
 				case AUSPARKEN:
 
-				    /*********AUSPARKEN()!!!!!!!!!!!!!!!!!!*********
+				    float xs, ys, xz, yz;
 
-				    ähnlich wie EINPARKEN
+                        if ( lastModus != CurrentModus.AUSPARKEN )
+                        {
+                            xs = navigation.getPose().getX();
+                            ys = navigation.getPose().getY();
 
-				    */
+                            xz = Startkoordinaten[0];    // noch vom Einparken
+                            yz = Startkoordinaten[1];    // noch vom Einparken
 
-                        if(control.getParkStatus())    /** zurück zu SCOUT, wenn fertig mit Ausparken*/
-                            currentModus = CurrentModus.SCOUT;
+                            control.setPath(Koeffizienten, true, navigation.getPose(), new Pose(xz, yz,0.0f));
+                            control.setCtrlMode(ControlMode.PARK_CTRL);
+                        }
+
+                        lastModus = currentModus;
+
+                        if(control.getParkStatus())    /** zurück zu PAUSE, wenn fertig mit Einparken*/
+                            currentStatus = CurrentStatus.INACTIVE;
 
 
                         if( hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown())
@@ -334,22 +325,24 @@ while(true)
                         }
 
 
+
                 break;
 /*###########################################################################################################################*/
                     case EINPARKEN: // Roboter steht vor Lücke und hat Zielkoordinaten für Einparken
-
-                        float xs, ys, xz, yz;
-
+                    	navigation.setDetectionState(false);
+                        float xs1, ys1, xz1, yz1;
 
                         if ( lastModus != CurrentModus.EINPARKEN )
                         {
-                            xs = navigation.getPose().getX();
-                            ys = navigation.getPose().getY();
+                            xs1 = navigation.getPose().getX();
+                            ys1 = navigation.getPose().getY();
+                            Startkoordinaten[0] = xs1;
+                            Startkoordinaten[1] = ys1;
 
-                            xz = Zielkoordinaten[0]/100.0f;
-                            yz = Zielkoordinaten[1]/100.0f;
+                            xz1 = Zielkoordinaten[0];
+                            yz1 = Zielkoordinaten[1];
 
-                            control.setPath(Pfadgenerator(xs, ys, xz, yz), false, navigation.getPose(), new Pose(xz, yz,0.0f));
+                            control.setPath(Pfadgenerator(xs1, ys1, xz1, yz1), false, navigation.getPose(), new Pose(xz1, yz1,0.0f));
                             control.setCtrlMode(ControlMode.PARK_CTRL);
                         }
 
@@ -396,23 +389,31 @@ while(true)
         	control.setCtrlMode(ControlMode.INACTIVE);
 			navigation.setDetectionState(false);
 
-            if( hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT || Button.ENTER.isDown())
+            if( hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT || Button.ENTER.isDown() )
             {
-                currentStatus = CurrentStatus.DRIVING;
-                currentModus = CurrentModus.SCOUT;
+            	currentStatus = CurrentStatus.DRIVING;
+
+                if(control.getParkStatus())    /** wenn fertig mit Einparken*/
+                    currentModus = CurrentModus.AUSPARKEN;
+
+                else
+                {
+                    currentModus = CurrentModus.SCOUT;    
+                }
+                
                 while(Button.ENTER.isDown())
                 {
                     Thread.sleep(1);
                 }
             }
 
-            if( hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW)
+            if( hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW && !control.getParkStatus())
             {
                 currentStatus = CurrentStatus.DRIVING;
                 currentModus = CurrentModus.PARK_NOW;
             }
 
-            if( hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS)
+            if( hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS && !control.getParkStatus())
             {
                 currentStatus = CurrentStatus.DRIVING;
                 currentModus = CurrentModus.PARK_THIS;
@@ -508,21 +509,23 @@ while(true)
         werte[2] = b;
         werte[3] = a;
 
+        Koeffizienten[0] = werte[0];
+        Koeffizienten[1] = werte[1];
+        Koeffizienten[2] = werte[2];
+        Koeffizienten[3] = werte[3];
+
         return werte;
 
 	}
 
-	private static float[] pruefeAufLuecke(float x, float y, INavigation navigation, CurrentModus modus,INxtHmi hmi) // Roboterkoordinaten werden übergeben (in cm)
+	private static boolean pruefeAufLuecke(float x, float y, INavigation navigation, CurrentModus modus, INxtHmi hmi) // Roboterkoordinaten werden übergeben (in cm)
 	{
-	    float [] werte = new float [3];     // werte[0] --> Parklücke vorhanden(1)/nicht(0)
-                                    // werte[1] --> Ziel X - Koordinate für Einparken wenn werte[0] == 1
-                                    // werte[2] --> Ziel Y - Koordinate für Einparken wenn werte[0] == 1
 
-        werte[0] = 0;               // Initialisierung mit 0: "keine passende Parklücke gefunden"
+        boolean erg = false;               // Initialisierung mit 0: "keine passende Parklücke gefunden"
 
-        float d = 5;               // 2*d = Abstandsintervall von Parklücke für Erkennung
-        float a = 20;               // Abstand von Parklückenrand (ca 5cm + halbe Roboterlänge)
-        float b = 30;               // Einparktiefe
+        float d = 0.1f;               // 2*d = Abstandsintervall von Parklücke für Erkennung
+        float a = 0.20f;               // Abstand von Parklückenrand (ca 5cm + halbe Roboterlänge)
+        float b = 0.30f;               // Einparktiefe
 
 	    float xp_f, xp_b, yp_f, yp_b, lp_x, lp_y;           // jeweilige Koordinaten bzw. Längen der Parklücken
 
@@ -532,45 +535,46 @@ while(true)
             for(int i = 0; i < navigation.getParkingSlots().length; i++)
             {
                 ParkingSlot slot = navigation.getParkingSlots()[i];
-                if(slot.getStatus()==ParkingSlotStatus.GOOD){
-                	
-                	xp_f = slot.getFrontBoundaryPosition().x * 100;
-                	xp_b = slot.getBackBoundaryPosition().x  * 100;
-                	yp_f = slot.getFrontBoundaryPosition().y * 100;
-                	yp_b = slot.getBackBoundaryPosition().y  * 100;
+                if(slot.getStatus()==ParkingSlotStatus.GOOD)
+                {
+
+                	xp_f = slot.getFrontBoundaryPosition().x;
+                	xp_b = slot.getBackBoundaryPosition().x;
+                	yp_f = slot.getFrontBoundaryPosition().y;
+                	yp_b = slot.getBackBoundaryPosition().y;
 
                 	lp_x = xp_f - xp_b;
                 	lp_y = yp_f - yp_b;
                 	if(lp_x < 0) lp_x *=-1;
                 	if(lp_y < 0) lp_y *=-1;
 
-                	if(y < 15 && x < 160 && yp_f < 15 && xp_b < 160)        // Roboter und Parklücke auf unterer Linie
+                	if(y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60)        // Roboter und Parklücke auf unterer Linie
                 	{
                     if( (xp_b-x) < d && (xp_b-x) > -d )
                     {
-                        werte[0] = 1;
-                        werte[1] = xp_b + lp_x - a;
-                        werte[2] = y - b;
+                        erg = true;
+                        Zielkoordinaten[0] = xp_b + lp_x - a;
+                        Zielkoordinaten[1] = y - b;
                     }
                 }
 
-                if(y > 15 && x < 160 && yp_f > 15 && xp_b < 160)        // Roboter und Parklücke auf oberer Linie
+                if(y > 0.15 && x < 1.60 && yp_f > 0.15 && xp_b < 1.60)        // Roboter und Parklücke auf oberer Linie
                 {
                     if( (x-xp_b) < d && (x-xp_b) > -d )
                     {
-                        werte[0] = 1;
-                        werte[1] = xp_b - lp_x + a;
-                        werte[2] = y + b;
+                        erg = true;
+                        Zielkoordinaten[0] = xp_b - lp_x + a;
+                        Zielkoordinaten[1] = y + b;
                     }
                 }
 
-                if(x > 160 && xp_f > 160)                               // Roboter und Parklücke auf rechter Linie
+                if(x > 1.60 && xp_f > 1.60)                               // Roboter und Parklücke auf rechter Linie
                 {
                     if( (yp_b-y) < d && (yp_b-y) > -d)
                     {
-                        werte[0] = 1;
-                        werte[1] = yp_b + lp_y - a;
-                        werte[2] = x + b;
+                        erg = true;
+                        Zielkoordinaten[0] = yp_b + lp_y - a;
+                        Zielkoordinaten[1] = x + b;
                     }
                 }
                 }
@@ -580,43 +584,43 @@ while(true)
             {
                 ParkingSlot slot = navigation.getParkingSlots()[hmi.getSelectedParkingSlot()];
 
-                xp_f = slot.getFrontBoundaryPosition().x * 100;
-                xp_b = slot.getBackBoundaryPosition().x  * 100;
-                yp_f = slot.getFrontBoundaryPosition().y * 100;
-                yp_b = slot.getBackBoundaryPosition().y  * 100;
+                xp_f = slot.getFrontBoundaryPosition().x;
+                xp_b = slot.getBackBoundaryPosition().x;
+                yp_f = slot.getFrontBoundaryPosition().y;
+                yp_b = slot.getBackBoundaryPosition().y;
 
                 lp_x = xp_f - xp_b;
                 lp_y = yp_f - yp_b;
                 if(lp_x < 0) lp_x *=-1;
                 if(lp_y < 0) lp_y *=-1;
 
-                if(y < 15 && x < 160 && yp_f < 15 && xp_b < 160)        // Roboter und Parklücke auf unterer Linie
+                if(y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60)        // Roboter und Parklücke auf unterer Linie
                 {
                     if( (xp_b-x) < d && (xp_b-x) > -d )
                     {
-                        werte[0] = 1;
-                        werte[1] = xp_b + lp_x - a;
-                        werte[2] = y - b;
+                        erg = true;
+                        Zielkoordinaten[0] = xp_b + lp_x - a;
+                        Zielkoordinaten[1] = y - b;
                     }
                 }
 
-                if(y > 15 && x < 160 && yp_f > 15 && xp_b < 160)        // Roboter und Parklücke auf oberer Linie
+                if(y > 0.15 && x < 1.60 && yp_f > 0.15 && xp_b < 1.60)        // Roboter und Parklücke auf oberer Linie
                 {
                     if( (x-xp_b) < d && (x-xp_b) > -d )
                     {
-                        werte[0] = 1;
-                        werte[1] = xp_b - lp_x + a;
-                        werte[2] = y + b;
+                        erg = true;
+                        Zielkoordinaten[0] = xp_b - lp_x + a;
+                        Zielkoordinaten[1] = y + b;
                     }
                 }
 
-                if(x > 160 && xp_f > 160)                               // Roboter und Parklücke auf rechter Linie
+                if(x > 1.60 && xp_f > 1.60)                               // Roboter und Parklücke auf rechter Linie
                 {
                     if( (yp_b-y) < d && (yp_b-y) > -d)
                     {
-                        werte[0] = 1;
-                        werte[1] = yp_b + lp_y - a;
-                        werte[2] = x + b;
+                        erg = true;
+                        Zielkoordinaten[0] = yp_b + lp_y - a;
+                        Zielkoordinaten[1] = x + b;
                     }
                 }
 
@@ -625,10 +629,10 @@ while(true)
 
         }
         else
-            werte[0] = -1; // Fehler
+            erg = false; // Fehler
 
 
-	    return werte;
+	    return erg;
 	}
 
 

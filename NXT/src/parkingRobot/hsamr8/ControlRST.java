@@ -31,7 +31,7 @@ public class ControlRST implements IControl {
 	 * {@value}7 --- test setpose
 	 * {@value}8 --- test pathctrl
 	 */
-	int option = 8; 		
+	int option = 2; 		
 	
 	//general constants:
 	static final int u_r_max =40; 							//power maximum
@@ -46,11 +46,11 @@ public class ControlRST implements IControl {
 	//static final int akku_max = 0;							//maximum voltage of akku in mV
 	
 	//parameter for exec_LINECTRL_ALGO_opt2
-	static final float kp_slow = 0.003f; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
-	static final float kp_fast = 0.0005f;
+	static final float kp_slow = 0.002f; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
+	static final float kp_fast = 0.000f;
 	//static final double ki = 0.000; //Integrierbeiwert PID Linefollower absolut:0.0082, neu:0.000
-	static final float kd_fast = 0.02f; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
-	static final float kd_slow = 0.028f;//0.024
+	static final float kd_fast = 0.012f; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
+	static final float kd_slow = 0.02f;//0.024
 	static final float V_FAST=0.2f;
 	static final float V_SLOW=0.15f;
 	
@@ -170,6 +170,12 @@ public class ControlRST implements IControl {
 	boolean inv=false;
 	boolean firstPark=false;
 	double currentTime=0;//aktuelle Zeit in s
+	enum Slot{
+		unten,
+		seite,
+		oben
+	}
+	Slot currentSlot=Slot.unten;
 	
 	
     //double currentDistance = 0.0;
@@ -395,11 +401,11 @@ public class ControlRST implements IControl {
     	leftMotor.forward();
     	rightMotor.forward();
     	double kp_l=0.031;
-    	double ki_l=0.00120;//bei TA=100: 0.00075
-    	double kd_l=0.082;//bei TA=100:0.015
+    	double ki_l=0.00120;//bei TA=100:  0.00120
+    	double kd_l=0.052;//bei TA=100: 0.082
     	double kp_r=0.031;
     	double ki_r=0.00120;
-    	double kd_r=0.085;//bei TA=100:0.016
+    	double kd_r=0.054;//bei TA=100: 0.085
     	
 		double [] speed = this.drive(this.velocity, this.angularVelocity); //berechne benötigte Winkelgeschwindigkeiten
 		this.monitor.writeControlComment("Zielgeschwindigkeit: "+speed[1]);
@@ -588,18 +594,30 @@ public class ControlRST implements IControl {
 	 */
 	private void exec_PARKCTRL_ALGO(){
 		monitor.writeControlComment("parkcontrol aufgerufen");
-		//für rückwärts einparken muss v,omega negiert werden, sonst bleibt die Planung gleich
+		//für rückwärts einparken muss v, v0 negiert werden, sonst bleibt die Planung gleich
 		//für die Lücke oben muss v0 negiert werden
 		//für seitliche Lücke muss omega negiert werden
 		if(this.firstPark){
+			if(this.destination.getY()>1.5){
+				this.currentSlot=Slot.seite;
+				this.monitor.writeControlComment("seite");
+			}
+			else if(this.destination.getY()<0.2){
+				this.currentSlot=Slot.unten;
+				this.monitor.writeControlComment("unten");
+			}
+			else{
+				this.currentSlot=Slot.oben;
+				this.monitor.writeControlComment("oben");
+			}
 			double v0;
-			if(inv){
+			if(inv || currentSlot==Slot.oben){
 				v0=-0.05;
 			}
 			else{
 				v0=0.05;
 			}
-			
+			monitor.writeControlComment("v0: "+v0);
 			float xs=this.startPosition.getX();
 			float ys=this.startPosition.getY();
 			float xz=this.destination.getX();
@@ -616,6 +634,7 @@ public class ControlRST implements IControl {
 			this.setStartTime((int)System.currentTimeMillis());
 			this.resetVW();
 			this.stop();
+			this.monitor.writeControlComment("pfad:" +path[0]+path[1]+path[2]+path[3]);
 			return;
 		}
 		double t=this.currentTime-this.startTime;
@@ -641,8 +660,8 @@ public class ControlRST implements IControl {
     		else{
     			this.monitor.writeControlComment("Ziel erreicht, abw: phi: "+deltaphi+" x: "+this.currentPosition.getX()+" y: "+(this.currentPosition.getY()));
     			this.ParkStatus=true;
-    			//this.resetVW();
-    			//this.stop();//testen   			
+    			this.resetVW();
+    			this.stop();//testen   			
     		}
 			return;
 		}
@@ -672,7 +691,7 @@ public class ControlRST implements IControl {
 		double d2y_t=d2y_x*Math.pow(dx, 2)+dy_x*d2x;//Regel von Faa die Bruno
 		this.monitor.writeControlComment("dx: "+dx+" dy_t:"+dy_t);
 		double v;
-		if(inv){
+		if(this.inv){
 			v=-Math.sqrt(dx*dx+dy_t*dy_t);
 		}
 		else{
@@ -682,6 +701,9 @@ public class ControlRST implements IControl {
 		monitor.writeControlVar("v", ""+v);
 		this.setVelocity(v);
 		double w=1/(v*v)*(dx*d2y_t-d2x*dy_t);	
+		if(currentSlot==Slot.seite){
+			w*=(-1);
+		}
 		
 		this.setAngularVelocity(w);
 		monitor.writeControlVar("w",""+w);
@@ -929,6 +951,7 @@ public class ControlRST implements IControl {
 	 */
 	
 	private void exec_LINECTRL_ALGO_opt2(){
+		this.ParkStatus=false;
 		this.monitor.writeControlComment("Linectrl aufgerufen");
 		//leftMotor.forward();
 		//rightMotor.forward();
@@ -1203,7 +1226,7 @@ public class ControlRST implements IControl {
 		}
 		else if(x>1.45 && x<1.65 && y>0.45){
 			monitor.writeControlComment("nah Kurve3: x:"+x+" y:"+y);
-			if(x>1.45 && x< 1.65 && y>0.55) return dest.left;
+			if(x>1.45 && x< 1.60 && y>0.55) return dest.left;
 			else return dest.no;
 		}
 		else if(x>1.2 && x<1.55 && y<0.45 && y>0.25){
