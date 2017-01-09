@@ -264,6 +264,7 @@ public class ControlRST implements IControl {
 		this.destination.setLocation((float) x, (float) y);
 		this.firstSetPose=true;
 		this.setPosePhase=1;
+		this.ParkStatus=false;
 	}
 	
 
@@ -296,6 +297,7 @@ public class ControlRST implements IControl {
 	 */
 	public void setStartTime(int startTime){
 		this.startTime = startTime/1000.0f;
+		this.lock=20;
 	}
 	
 	/**
@@ -689,6 +691,7 @@ public class ControlRST implements IControl {
 	}
 	
     private void exec_INACTIVE(){
+    	this.resetVW();
     	this.stop();
 	}
 	

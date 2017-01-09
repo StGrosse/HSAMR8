@@ -264,8 +264,7 @@ public class NavigationAT implements INavigation{
 		this.updateSensors();
 		this.calculateLocationLocation();
 		// Detection->close
-		if (this.parkingSlotDetectionIsOn)
-			this.detectParkingSlot();
+		//if (this.parkingSlotDetectionIsOn) this.detectParkingSlot();
 		
 		
 		// MONITOR (example)		
