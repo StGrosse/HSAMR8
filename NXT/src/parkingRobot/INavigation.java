@@ -42,6 +42,8 @@ public interface INavigation {
 	 */
 	public void updateNavigation();
 	
+	public void setLine(int line);
+	
 	
 	// Outputs
 	

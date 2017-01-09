@@ -291,6 +291,9 @@ public class NavigationAT implements INavigation{
 		return Slots;
 	}
 	
+	public void setLine(int line){
+		this.currentLine=line;
+	}
 	
 	// Private methods
 	
@@ -356,11 +359,15 @@ public class NavigationAT implements INavigation{
 			angleResult 	= this.pose.getHeading() + w * deltaT;
 			if (angleResult >Math.PI * 1.77) {
 				angleResult = 0;
-				xResult = 0.02;
-				yResult = 0.0;
-				currentLine=0;
+				if(this.parkingSlotDetectionIsOn){
+					xResult = 0.02;
+					yResult = 0.0;
+					currentLine=0;
+				}
+				
 			}
 		}
+		if(this.parkingSlotDetectionIsOn){
 		//line0
 		if((this.pose.getHeading() < Math.PI * 0.10)&& (this.pose.getHeading() >- Math.PI * 0.10)){
 		         currentLine=0;
@@ -391,29 +398,11 @@ public class NavigationAT implements INavigation{
 		//Line=1
 		if ((this.pose.getHeading() >Math.PI * 0.44) && (this.pose.getHeading() < Math.PI * 0.55)&& (currentLine == 0)) {
 			monitor.writeNavigationComment("enter line1");
-			xResult=1.78;
-			angleResult=0.5*Math.PI;
-            currentLine=1;
-            /*
-			if (parkingSlotDetectionIsOn) {
+			if(this.parkingSlotDetectionIsOn){
 				xResult=1.78;
+				angleResult=0.5*Math.PI;
 				currentLine=1;
-				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.65)) {
-					if ((this.pose.getHeading() < Math.PI * 0.49) || (this.pose.getHeading() > Math.PI * 0.51)) {
-						//angleResult = Math.PI * 0.5;
-						angleResult=0.5*Math.PI;
-					}
-					if (this.pose.getX() > 1.79) {
-				    xResult = 1.78;
-			      }
-			       if (this.pose.getX() < 1.77) {
-				   xResult = 1.78;
-		         	}
-				}
-			
-			
-			}*/
-			
+			}
 		}
 		
 		if (currentLine== 1) {
@@ -756,7 +745,7 @@ public class NavigationAT implements INavigation{
 			//}
 		   }
 		}
-		
+		}
 		this.pose.setLocation((float) xResult, (float) yResult);
 		this.pose.setHeading((float) angleResult);
 		

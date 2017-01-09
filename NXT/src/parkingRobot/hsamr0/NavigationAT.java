@@ -160,6 +160,7 @@ public class NavigationAT implements INavigation{
 		this.parkingSlotDetectionIsOn = isOn;
 	}
 	
+	public void setLine(int line){}
 	
 	// 	Class control
 	

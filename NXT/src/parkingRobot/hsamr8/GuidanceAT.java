@@ -57,6 +57,7 @@ public class GuidanceAT {
 		 */
 		EXIT
 	}
+	static float initHeading=0f;
 	
 	
 	/**
@@ -131,7 +132,7 @@ public class GuidanceAT {
 					if ( lastStatus != CurrentStatus.DRIVING ){
 						control.setCtrlMode(ControlMode.LINE_CTRL);
 					}
-					if(beispielsequenz1(navigation, control)){
+					if(beispielsequenz1(navigation, control, monitor)){
 						currentStatus=CurrentStatus.INACTIVE;
 					}
 					//While action				
@@ -236,7 +237,7 @@ public class GuidanceAT {
 //			LCD.drawString("HMI Mode UNKNOWN", 0, 3);
 //		}
 	}
-	private static boolean beispielsequenz1(INavigation navigation, IControl control){
+	private static boolean beispielsequenz1(INavigation navigation, IControl control, IMonitor monitor){
 		if(phase==1){	
 			navigation.setDetectionState(true);
 			control.setVelocity(0.1);
@@ -258,10 +259,10 @@ public class GuidanceAT {
 			control.setCtrlMode(ControlMode.VW_CTRL);
 			
 			if(navigation.getPose().getHeading()>(Math.PI/2-Math.PI/240)){
+				monitor.writeGuidanceComment("Winkel: "+navigation.getPose().getHeading());
 				phase=3;
 				control.setCtrlMode(ControlMode.INACTIVE);
-				navigation.setDetectionState(false);
-				
+				navigation.setDetectionState(false);			
 			}
 			return false;
 		}
@@ -270,10 +271,11 @@ public class GuidanceAT {
 			control.setVelocity(0.05);
 			control.setAngularVelocity(0.0);
 			control.setCtrlMode(ControlMode.VW_CTRL);
-			if(navigation.getPose().getY()>0.315){
+			if(navigation.getPose().getY()>0.28){
 				phase=4;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
+				initHeading=navigation.getPose().getHeading();
 				
 			}
 			return false;
@@ -283,11 +285,15 @@ public class GuidanceAT {
 			control.setVelocity(0.0);
 			control.setAngularVelocity(Math.PI/6);
 			control.setCtrlMode(ControlMode.VW_CTRL);
-			if(navigation.getPose().getHeading()>Math.PI-Math.PI/120){
+			if(navigation.getPose().getHeading()-initHeading>Math.PI/2-Math.PI/120){
+				monitor.writeGuidanceComment("Winkel: "+navigation.getPose().getHeading());
 				phase=5;
 				control.setCtrlMode(ControlMode.INACTIVE);
+				navigation.setLine(4);
 				control.setStartTime(20); //Behelf
 				navigation.setDetectionState(true);
+				monitor.writeGuidanceComment("phase 5");
+
 				
 			}
 			return false;

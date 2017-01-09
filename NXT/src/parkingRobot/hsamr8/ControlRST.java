@@ -31,7 +31,7 @@ public class ControlRST implements IControl {
 	 * {@value}7 --- test setpose
 	 * {@value}8 --- test pathctrl
 	 */
-	int option = 8; 		
+	int option = 2; 		
 	
 	//general constants:
 	static final int u_r_max =40; 							//power maximum
@@ -46,11 +46,11 @@ public class ControlRST implements IControl {
 	//static final int akku_max = 0;							//maximum voltage of akku in mV
 	
 	//parameter for exec_LINECTRL_ALGO_opt2
-	static final float kp_slow = 0.003f; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
+	static final float kp_slow = 0.002f; //Proportionalbeiwert PID Linefollower absolut:0.0601, neu:0.004
 	static final float kp_fast = 0.0005f;
 	//static final double ki = 0.000; //Integrierbeiwert PID Linefollower absolut:0.0082, neu:0.000
-	static final float kd_fast = 0.02f; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
-	static final float kd_slow = 0.028f;//0.024
+	static final float kd_fast = 0.010f; //Differenzierbeiwert PID Linefollower absolut:0.095, neu.0.04
+	static final float kd_slow = 0.015f;//0.024
 	static final float V_FAST=0.2f;
 	static final float V_SLOW=0.15f;
 	
