@@ -318,6 +318,7 @@ public class GuidanceAT {
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(true);
 				control.setStartTime(20);//Behelf
+				navigation.setInv(true);
 				
 			}
 			return false;

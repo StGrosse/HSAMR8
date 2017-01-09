@@ -43,6 +43,7 @@ public interface INavigation {
 	public void updateNavigation();
 	
 	public void setLine(int line);
+	public void setInv(boolean inv);
 	
 	
 	// Outputs

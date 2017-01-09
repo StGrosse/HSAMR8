@@ -161,6 +161,7 @@ public class NavigationAT implements INavigation{
 	}
 	
 	public void setLine(int line){}
+	public void setInv(boolean inv){}
 	
 	// 	Class control
 	
