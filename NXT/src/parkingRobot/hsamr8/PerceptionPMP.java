@@ -268,7 +268,7 @@ public class PerceptionPMP implements IPerception {
 		this.BackSideSensorDistance	=		(double)(((sensorBytes[13] & 0xff)<<8) | (sensorBytes[12] & 0xff));		
 		this.controlOdo.addShift(this.UOdmometry,this.VOdometry,this.OdometryT);
 		this.navigationOdo.addShift(this.UOdmometry,this.VOdometry,this.OdometryT);
-		this.showSensorData();
+		//this.showSensorData();
 	}
 
 	

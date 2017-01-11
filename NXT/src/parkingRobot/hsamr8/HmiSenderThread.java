@@ -6,6 +6,7 @@ import parkingRobot.IMonitor;
 import parkingRobot.INavigation.ParkingSlot;
 import parkingRobot.hsamr8.GuidanceAT;
 import parkingRobot.hsamr8.HmiPLT.Command;
+import lejos.nxt.LCD;
 import lejos.nxt.comm.RConsole;
 import lejos.robotics.navigation.Pose;
 
@@ -47,7 +48,11 @@ public class HmiSenderThread extends Thread{
 
 			} catch(InterruptedException ie){
 				System.out.println("Interruption of HmiSenderThread in sleep()");
+			} catch(NullPointerException ne){
+				LCD.clear();
+				LCD.drawString("NP", 0, 0);
 			}
+			
 		}
 	}
 	
