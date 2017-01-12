@@ -1024,8 +1024,8 @@ public class ControlRST implements IControl {
 	 * sich anschlieﬂend um 90 Grad um die eigene Achse dreht
 	 */
 	private void curveAlgo2(){
-		this.leftMotor.forward();
-		this.rightMotor.forward();
+		//this.leftMotor.forward();
+		//this.rightMotor.forward();
 		//encoderSumL+=this.angleMeasurementLeft.getAngleSum();//update gefahrener Winkel
 		//encoderSumR+=this.angleMeasurementRight.getAngleSum();
 		double av_encoderSum=0.5*(Math.abs(encoderSumL)+Math.abs(encoderSumR));//Berechnung des Durchschnitts beider Sensoren zur Verbesserung der Genauigkeit
