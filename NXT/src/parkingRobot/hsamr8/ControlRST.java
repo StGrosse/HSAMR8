@@ -1196,7 +1196,7 @@ public class ControlRST implements IControl {
 		double y=this.currentPosition.getY();
 		if(y<0.3 && x>1.60){
 			monitor.writeControlComment("nah Kurve1: x:"+x+" y:"+y);
-			if(y<0.05 && x>1.65) return dest.left;//Kurve 1
+			if(y<0.15 && x>1.65) return dest.left;//Kurve 1
 			else return dest.no;
 		}
 		else if(x>1.65 && y>0.3){
