@@ -40,6 +40,7 @@ public class GuidanceAT {
 	static float[] Koeffizienten = new float[4];
 	static float[] Zielkoordinaten = new float[2];
 	static float[] Startkoordinaten = new float[2];
+	static int line=0;
 
 	public enum CurrentStatus {
 		DRIVING, INACTIVE, EXIT
@@ -232,17 +233,12 @@ public class GuidanceAT {
 				float xs1, ys1, xz1, yz1;
 
 				if (lastModus != CurrentModus.EINPARKEN) {
-					xs1 = navigation.getPose().getX();
-					ys1 = navigation.getPose().getY();
-					Startkoordinaten[0] = xs1; // wird für späteres Ausparken
-												// gesetzt
-					Startkoordinaten[1] = ys1; // wird für späteres Ausparken
-												// gesetzt
+					
 					xz1 = Zielkoordinaten[0];
 					yz1 = Zielkoordinaten[1];
 
-					control.setPath(Pfadgenerator(xs1, ys1, xz1, yz1), false, navigation.getPose(),
-							new Pose(xz1, yz1, navigation.getPose().getHeading()));
+					control.setPath(Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1), false, new Pose(Startkoordinaten[0], Startkoordinaten[1],navigation.getPose().getHeading()),
+							new Pose(xz1, yz1, navigation.getPose().getHeading()), line);
 					control.setCtrlMode(ControlMode.PARK_CTRL);
 
 					navigation.setDetectionState(false);
@@ -291,7 +287,7 @@ public class GuidanceAT {
 												// Zielposition für Ausparken
 
 					control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(),
-							new Pose(xz, yz, navigation.getPose().getHeading()));
+							new Pose(xz, yz, navigation.getPose().getHeading()),line);
 					control.setCtrlMode(ControlMode.PARK_CTRL);
 
 					navigation.setDetectionState(false);
@@ -464,11 +460,11 @@ public class GuidanceAT {
 		boolean erg = false; // Initialisierung mit false: "keine passende
 								// Parklücke gefunden"
 
-		float d = 0.15f; // 2*d = Abstandsintervall von Parklücke für Erkennung
-		float a = 0.2f; // Abstand von Parklückenrand (ca 5cm + halbe
+		float d = 0.10f; // 2*d = Abstandsintervall von Parklücke für Erkennung
+		float a = 0.15f; // Abstand von Parklückenrand (ca 5cm + halbe
 						// Roboterlänge)
-		float b = 0.3f; // Einparktiefe
-		float dAlpha = 10;
+		float b = 0.25f; // Einparktiefe
+		float dAlpha = 5;
 		float winkel =  (float)(navigation.getPose().getHeading() / Math.PI * 180); // in °
 		while(winkel>=360){
 			winkel-=360;
@@ -495,7 +491,7 @@ public class GuidanceAT {
 						if (lp_y < 0)
 							lp_y *= -1;
 
-						if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && (winkel < dAlpha) && (winkel > -dAlpha)) // Roboter
+						if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && ((winkel < dAlpha) || winkel > 360-dAlpha) && (winkel > -dAlpha)) // Roboter
 																				// und
 																				// Parklücke
 																				// auf
@@ -504,6 +500,11 @@ public class GuidanceAT {
 						{
 							if ((xp_b - x) < d && (xp_b - x) > -d) {
 								erg = true;
+								line=0;
+								Startkoordinaten[0] =navigation.getPose().getX(); // wird für späteres Ausparken
+															// gesetzt
+								Startkoordinaten[1] = navigation.getPose().getY(); // wird für späteres Ausparken
+															// gesetzt
 								Zielkoordinaten[0] = xp_b + lp_x - a;
 								Zielkoordinaten[1] = y - b;
 							}
@@ -518,6 +519,9 @@ public class GuidanceAT {
 						{
 							if ((x - xp_b) < d && (x - xp_b) > -d) {
 								erg = true;
+								line=4;
+								Startkoordinaten[0] =navigation.getPose().getX(); 
+								Startkoordinaten[1] = navigation.getPose().getY(); 
 								Zielkoordinaten[0] = xp_b - lp_x + a;
 								Zielkoordinaten[1] = y + b;
 							}
@@ -529,8 +533,11 @@ public class GuidanceAT {
 							if ((yp_b - y) < d && (yp_b - y) > -d && winkel < 90+dAlpha && winkel > 90-dAlpha)
                             {
 								erg = true;
-								Zielkoordinaten[0] = x + b;
-								Zielkoordinaten[1] = yp_b + lp_y - a;
+								line=1;
+								Startkoordinaten[0] =navigation.getPose().getY(); 
+								Startkoordinaten[1] = navigation.getPose().getX(); 
+								Zielkoordinaten[0] = yp_b + lp_y - a;
+								Zielkoordinaten[1] = x + b;
 							}
 						}
 					}
@@ -551,7 +558,7 @@ public class GuidanceAT {
 				if (lp_y < 0)
 					lp_y *= -1;
 
-				if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && winkel < dAlpha && winkel > dAlpha) // Roboter
+				if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && ((winkel < dAlpha) || winkel > 360-dAlpha) && (winkel > -dAlpha)) // Roboter
 																		// und
 																		// Parklücke
 																		// auf
@@ -560,6 +567,9 @@ public class GuidanceAT {
 				{
 					if ((xp_b - x) < d && (xp_b - x) > -d) {
 						erg = true;
+						line=0;
+						Startkoordinaten[0] =navigation.getPose().getX(); 
+						Startkoordinaten[1] = navigation.getPose().getY(); 
 						Zielkoordinaten[0] = xp_b + lp_x - a;
 						Zielkoordinaten[1] = y - b;
 					}
@@ -574,6 +584,9 @@ public class GuidanceAT {
 				{
 					if ((x - xp_b) < d && (x - xp_b) > -d) {
 						erg = true;
+						line=4;
+						Startkoordinaten[0] =navigation.getPose().getX(); 
+						Startkoordinaten[1] = navigation.getPose().getY(); 
 						Zielkoordinaten[0] = xp_b - lp_x + a;
 						Zielkoordinaten[1] = y + b;
 					}
@@ -584,6 +597,9 @@ public class GuidanceAT {
 				{
 					if ((yp_b - y) < d && (yp_b - y) > -d) {
 						erg = true;
+						line=1;
+						Startkoordinaten[0] =navigation.getPose().getY(); 
+						Startkoordinaten[1] = navigation.getPose().getX(); 
 						Zielkoordinaten[0] = yp_b + lp_y - a;
 						Zielkoordinaten[1] = x + b;
 					}

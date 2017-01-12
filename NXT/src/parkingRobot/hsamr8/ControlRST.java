@@ -51,15 +51,15 @@ public class ControlRST implements IControl {
 	// static final int akku_max = 0; //maximum voltage of akku in mV
 
 	// parameter for exec_LINECTRL_ALGO_opt2
-	static final float kp_slow = 0.0005f; // Proportionalbeiwert PID
-											// Linefollower 0.002?
-											// absolut:0.0601, neu:0.004
+	static final float kp_slow = 0.0006f; // Proportionalbeiwert PID 0.0005
+											// Linefollower 
+											// absolut:
 	static final float kp_fast = 0.00007f;
 	// static final double ki = 0.000; //Integrierbeiwert PID Linefollower
 	// absolut:0.0082, neu:0.000
-	static final float kd_fast = 0.026f; // Differenzierbeiwert PID Linefollower
+	static final float kd_fast = 0.025f; // Differenzierbeiwert PID Linefollower
 											// absolut:0.095, neu.0.02
-	static final float kd_slow = 0.034f;// 0.028
+	static final float kd_slow = 0.033f;// 0.028
 	static final float V_FAST = 0.2f;
 	static final float V_SLOW = 0.15f;
 
@@ -188,7 +188,7 @@ public class ControlRST implements IControl {
 	boolean inv = false;
 	boolean firstPark = false;
 	double currentTime = 0;// aktuelle Zeit in s
-
+	int line=0;
 	enum Slot {
 		unten, seite, oben
 	}
@@ -262,9 +262,14 @@ public class ControlRST implements IControl {
 			this.angVelPerPercent=16.5f;
 			this.offsetAngVelPerPercent=-154.7f;
 		}
-		else if(akku>7.6 && akku<7.7){
+		else if(akku>7.6 && akku<=7.7){
 			this.angVelPerPercent=16.9f;
 			this.offsetAngVelPerPercent=-156.5f;
+		}
+		else if(akku>7.7 && akku<=8.3){
+			this.angVelPerPercent=18.2f;
+			this.offsetAngVelPerPercent=-167.4f;
+			
 		}
 		
 
@@ -337,14 +342,16 @@ public class ControlRST implements IControl {
 	 *            jos.robotics.navigation.Pose
 	 * @param ziel
 	 *            position where path ends
-	 */
-	public void setPath(float[] path, boolean inv, Pose start, Pose ziel) {
+	 * @param line line number of the slot
+	 * 	 */
+	public void setPath(float[] path, boolean inv, Pose start, Pose ziel, int line) {
 		this.path = path;
 		this.inv = inv;
 		this.startPosition = start;
 		this.destination = ziel;
 		this.firstPark = true;
 		this.ParkStatus = false;
+		this.line=line;
 	}
 
 	/**
@@ -489,7 +496,7 @@ public class ControlRST implements IControl {
 		// Steuerung der Motoren (ohne Regelung) auf Basis von experimentell
 		// bestimmter Proportionalitätskonstante
 		if (this.newVW) {
-			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL)/* || (curve!=dest.no)*/) {
+			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) || (curve!=dest.no)) {
 			
 				if (speed[0] > 0) {
 					steuerL = (int) ((Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
@@ -721,16 +728,17 @@ public class ControlRST implements IControl {
 		// für die Lücke oben muss v0 negiert werden
 		// für seitliche Lücke muss omega negiert werden
 		if (this.firstPark) {
-			if (this.destination.getX() > 1.7) {
+			if (line==1) {
 				this.currentSlot = Slot.seite;
 				this.monitor.writeControlComment("seite");
-			} else if (this.destination.getY() < 0.2) {
+			} else if (line==0) {
 				this.currentSlot = Slot.unten;
 				this.monitor.writeControlComment("unten");
-			} else {
+			} else if(line==4){
 				this.currentSlot = Slot.oben;
 				this.monitor.writeControlComment("oben");
 			}
+
 			double v0;
 			if ((inv && !(currentSlot == Slot.oben)) || (!inv && (currentSlot== Slot.oben))) {
 				v0 = -0.05;
@@ -760,10 +768,19 @@ public class ControlRST implements IControl {
 		LCD.clear();
 		LCD.drawString(
 				"Z: " + Math.round(this.destination.getX()*100)/100.0f + ", " + Math.round(this.destination.getY()*100)/100.0f + ", " + Math.round(this.destination.getHeading()*100)/100.0f,
-				0, 0);
+				0, 4);
 		LCD.drawString("a: " + Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
-				+ Math.round(this.currentPosition.getHeading()*100)/100.0f, 0, 1);
-		LCD.drawString(""+this.currentSlot, 0, 2);
+				+ Math.round(this.currentPosition.getHeading()*100)/100.0f, 0, 5);
+		/*LCD.drawString(""+this.currentSlot, 0, 2);
+		LCD.drawString(""+T, 0, 3);*/
+		LCD.drawString(""+path[0], 0, 0);
+		LCD.drawString(""+path[1], 0, 1);
+		LCD.drawString(""+path[2], 0, 2);
+		LCD.drawString(""+path[3], 0, 3);
+		//LCD.drawString(""+Math.round(this.destination.getX()*100)/100.0f+" "+Math.round(this.destination.getY()*100)/100.0f, 0, 4);
+		//LCD.drawString(""+Math.round(this.startPosition.getX()*100)/100.0f+" "+Math.round(this.startPosition.getY()*100)/100.0f, 0, 4);
+
+		
 		double t = this.currentTime - this.startTime;
 		monitor.writeControlComment("t: " + t);
 		if ((T - t) < 0.0) {
@@ -779,7 +796,7 @@ public class ControlRST implements IControl {
 					deltaphi += 2 * Math.PI;
 			}
 			this.monitor.writeControlComment("deltaphi:" + deltaphi);
-			/*if (Math.abs(deltaphi) > Math.PI / 120 && !ParkStatus) {
+			if (Math.abs(deltaphi) > Math.PI / 120 && !ParkStatus) {
 				this.setVelocity(0.0);
 				if (deltaphi < 0)
 					this.setAngularVelocity(+Math.PI / 6);
@@ -788,7 +805,7 @@ public class ControlRST implements IControl {
 				this.innerLoop();
 			}
 
-			else {*/
+			else {
 				this.monitor.writeControlComment("Ziel erreicht, abw: phi: " + deltaphi + " x: "
 						+ this.currentPosition.getX() + " y: " + (this.currentPosition.getY()));
 				this.ParkStatus = true;
@@ -796,7 +813,7 @@ public class ControlRST implements IControl {
 				this.stop();// testen
 				//this.currentCTRLMODE = ControlMode.LINE_CTRL;
 				this.lock=20;
-			//}
+			}
 			return;
 		}
 		double x = 0;
@@ -839,7 +856,7 @@ public class ControlRST implements IControl {
 		monitor.writeControlVar("v", "" + v);
 		this.setVelocity(v);
 		double w = 1 / (v * v) * (dx * d2y_t - d2x * dy_t);
-		if (currentSlot == Slot.seite) {
+		if (currentSlot == Slot.seite && !inv) {
 			w *= (-1);
 		}
 
@@ -959,7 +976,7 @@ public class ControlRST implements IControl {
 				monitor.writeControlComment("Ende Phase 1");
 
 				float[] a = { -0.1103703703703716f, 1.8962962962963157f, -7.901234567901323f, 7.023319615912314f };
-				this.setPath(a, false, new Pose(0.15f, 0.02f, 0.0f), new Pose(0.6f, -0.3f, 0.0f));
+				this.setPath(a, false, new Pose(0.15f, 0.02f, 0.0f), new Pose(0.6f, -0.3f, 0.0f),0);
 				return;
 
 			}
@@ -974,7 +991,7 @@ public class ControlRST implements IControl {
 				phase = 3;
 				this.currentCTRLMODE = ControlMode.PARK_CTRL;
 				float[] a = { -0.1103703703703716f, 1.8962962962963157f, -7.901234567901323f, 7.023319615912314f };
-				this.setPath(a, true, new Pose(0.6f, -0.3f, 0.0f), new Pose(0.15f, 0.02f, 0.0f));
+				this.setPath(a, true, new Pose(0.6f, -0.3f, 0.0f), new Pose(0.15f, 0.02f, 0.0f),0);
 				return;
 
 			}
