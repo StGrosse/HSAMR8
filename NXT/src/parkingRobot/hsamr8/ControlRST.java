@@ -759,10 +759,10 @@ public class ControlRST implements IControl {
 		}
 		LCD.clear();
 		LCD.drawString(
-				"Z: " + this.destination.getX() + ", " + this.destination.getY() + ", " + this.destination.getHeading(),
+				"Z: " + Math.round(this.destination.getX()*100)/100.0f + ", " + Math.round(this.destination.getY()*100)/100.0f + ", " + Math.round(this.destination.getHeading()*100)/100.0f,
 				0, 0);
-		LCD.drawString("a: " + this.currentPosition.getX() + ", " + this.currentPosition.getY() + ", "
-				+ this.currentPosition.getHeading(), 0, 1);
+		LCD.drawString("a: " + Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
+				+ Math.round(this.currentPosition.getHeading()*100)/100.0f, 0, 1);
 		LCD.drawString(""+this.currentSlot, 0, 2);
 		double t = this.currentTime - this.startTime;
 		monitor.writeControlComment("t: " + t);

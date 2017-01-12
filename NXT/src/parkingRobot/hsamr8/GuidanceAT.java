@@ -529,8 +529,8 @@ public class GuidanceAT {
 							if ((yp_b - y) < d && (yp_b - y) > -d && winkel < 90+dAlpha && winkel > 90-dAlpha)
                             {
 								erg = true;
-								Zielkoordinaten[0] = yp_b + lp_y - a;
-								Zielkoordinaten[1] = x + b;
+								Zielkoordinaten[0] = x + b;
+								Zielkoordinaten[1] = yp_b + lp_y - a;
 							}
 						}
 					}
