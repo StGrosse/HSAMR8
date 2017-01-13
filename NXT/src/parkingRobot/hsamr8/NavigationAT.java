@@ -301,8 +301,7 @@ public class NavigationAT implements INavigation {
 		monitor.writeNavigationVar("Alpha_wert", "" + this.getPose().getHeading());
 
 	}
-
-	// Outputs
+// Outputs
 
 	/*
 	 * (non-Javadoc)
@@ -311,6 +310,10 @@ public class NavigationAT implements INavigation {
 	 */
 	public synchronized Pose getPose() {
 		return this.pose;
+	}
+	public synchronized void setPose(float heading){
+		this.pose.setHeading(heading);
+		
 	}
 
 	/*

@@ -165,6 +165,9 @@ public class ControlRST implements IControl {
 		this.lastTime = startTime;
 	}
 	
+	public int getAmountOfCurves(){
+		return 0;
+	}
 	/**
 	 * selection of control-mode
 	 * @see parkingRobot.IControl#exec_CTRL_ALGO()
@@ -195,7 +198,7 @@ public class ControlRST implements IControl {
 		return false;
 	}
 	
-	public void setPath(float[]path, boolean inv, Pose start, Pose ziel){}
+	public void setPath(float[]path, boolean inv, Pose start, Pose ziel, int line){}
 	// Private methods
 	
 	/**

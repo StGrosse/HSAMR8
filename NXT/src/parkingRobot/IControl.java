@@ -114,6 +114,8 @@ public interface IControl {
 	 * @param start start pose
 	 * @param ziel destination pose
 	 */
-	public void setPath(float[] path, boolean inv, Pose start, Pose ziel);
+	public void setPath(float[] path, boolean inv, Pose start, Pose ziel, int line);
+	public int getAmountOfCurves();
+	public void setBackward(boolean backward);
 }
 

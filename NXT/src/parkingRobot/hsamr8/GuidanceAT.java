@@ -111,7 +111,7 @@ public class GuidanceAT {
 		IMonitor monitor = new Monitor();
 		
 		IPerception perception = new PerceptionPMP(leftMotor, rightMotor, monitor);
-		perception.calibrateLineSensors();
+		//perception.calibrateLineSensors();
 		
 		INavigation navigation = new NavigationAT(perception, monitor);
 		IControl    control    = new ControlRST(perception, navigation, leftMotor, rightMotor, monitor);
@@ -120,7 +120,8 @@ public class GuidanceAT {
 		monitor.startLogging();
 				
 		while(true) {
-			showData(navigation, perception);
+			//showData(navigation, perception);
+			
 			
         	switch ( currentStatus )
         	{
@@ -302,23 +303,28 @@ public class GuidanceAT {
 		else if(phase==5){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			Pose currentPose=navigation.getPose();
-			if(currentPose.getX()>0.02 && currentPose.getY()<0.05){
+			if(currentPose.getX()>0.02 && currentPose.getY()<0.05 && control.getAmountOfCurves()==4){
 				phase=6;
+				navigation.setPose(0.0f);
 				control.setCtrlMode(ControlMode.INACTIVE);
+				control.setDestination(1.5*Math.PI, 1.82, 0.62);	
 				navigation.setDetectionState(false);
 				
 			}
 			return false;
 		}
 		else if(phase==6){
-			control.setDestination(1.5*Math.PI, 1.82, 0.62);		
+				
 			control.setCtrlMode(ControlMode.SETPOSE);
 			if(control.getParkStatus()){
 				phase=7;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(true);
+				navigation.setLine(1);
 				control.setStartTime(20);//Behelf
 				navigation.setInv(true);
+				control.setBackward(true);
+				navigation.setPose((float)(3*Math.PI/2));
 				
 			}
 			return false;
@@ -326,10 +332,18 @@ public class GuidanceAT {
 		else if(phase==7){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			Pose currentPose=navigation.getPose();
-			if(currentPose.getX()<0.02){
+			if(control.getAmountOfCurves()==1){
+				navigation.setLine(0);
+				navigation.setPose((float)Math.PI);
+				
+			}
+			if(currentPose.getX()>3.58){
 				phase=8;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
+				control.setBackward(false);
+				navigation.setPose((float)Math.PI);
+				//Koordinaten auf Startposition setzen:
 				
 			}
 			return false;
@@ -354,7 +368,7 @@ public class GuidanceAT {
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
 				float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
-				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.3f,0.0f));
+				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.3f,0.0f), 0);
 			}
 			return false;
 
@@ -381,7 +395,7 @@ public class GuidanceAT {
 				phase=2;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
-				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.3f,0.0f));
+				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.3f,0.0f),0);
 			}
 			return false;
 		}
@@ -391,7 +405,7 @@ public class GuidanceAT {
 				phase=3;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
-				control.setPath(a, true,new Pose(0.6f,-0.3f,0.0f), new Pose(0.15f,0.02f,0.0f));			
+				control.setPath(a, true,new Pose(0.6f,-0.3f,0.0f), new Pose(0.15f,0.02f,0.0f),0);			
 			}
 			return false;
 		}
@@ -413,7 +427,7 @@ public class GuidanceAT {
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);			
 				float[] a={1.7821411951148907f,-0.21733935376707336f,5.674972015028288f,-8.049605695065111f};
-				control.setPath(a, false, new Pose(0.02f,1.78f,0.0f), new Pose(0.45f,2.1f,0.0f));
+				control.setPath(a, false, new Pose(0.02f,1.78f,0.0f), new Pose(0.45f,2.1f,0.0f),1);
 			}
 			return false;
 		}
@@ -423,7 +437,7 @@ public class GuidanceAT {
 				phase=6;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				float[] a={1.7821411951148907f,-0.21733935376707336f,5.674972015028288f,-8.049605695065111f};
-				control.setPath(a, true, new Pose(0.45f,2.1f,0.0f),new Pose(0.02f,1.78f,0.0f));
+				control.setPath(a, true, new Pose(0.45f,2.1f,0.0f),new Pose(0.02f,1.78f,0.0f),1);
 			}
 			return false;
 		}

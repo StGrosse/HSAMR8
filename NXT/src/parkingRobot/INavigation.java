@@ -62,6 +62,8 @@ public interface INavigation {
 	 */
 	public ParkingSlot[] getParkingSlots();
 	
+	public void setPose(float heading);
+	
 	
 	// Subclasses
 	
@@ -110,6 +112,7 @@ public interface INavigation {
 			 */
 			RESCAN
 		}
+		
 		/**
 		 * characterization of the parking slot measurement with the defined state value.
 		 * Per default is the parking slot not suitable.
