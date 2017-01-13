@@ -230,7 +230,7 @@ public class GuidanceAT {
 			case EINPARKEN: // Roboter steht vor Lücke und hat Zielkoordinaten
 							// für Einparken
 
-				float xs1, ys1, xz1, yz1;
+				float  xz1, yz1;
 
 				if (lastModus != CurrentModus.EINPARKEN) {
 					

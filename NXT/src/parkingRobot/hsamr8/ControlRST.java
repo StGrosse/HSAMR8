@@ -767,9 +767,9 @@ public class ControlRST implements IControl {
 		}
 		LCD.clear();
 		LCD.drawString(
-				"Z: " + Math.round(this.destination.getX()*100)/100.0f + ", " + Math.round(this.destination.getY()*100)/100.0f + ", " + Math.round(this.destination.getHeading()*100)/100.0f,
+				Math.round(this.destination.getX()*100)/100.0f + ", " + Math.round(this.destination.getY()*100)/100.0f + ", " + Math.round(this.destination.getHeading()*100)/100.0f,
 				0, 4);
-		LCD.drawString("a: " + Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
+		LCD.drawString(Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
 				+ Math.round(this.currentPosition.getHeading()*100)/100.0f, 0, 5);
 		/*LCD.drawString(""+this.currentSlot, 0, 2);
 		LCD.drawString(""+T, 0, 3);*/
@@ -856,7 +856,7 @@ public class ControlRST implements IControl {
 		monitor.writeControlVar("v", "" + v);
 		this.setVelocity(v);
 		double w = 1 / (v * v) * (dx * d2y_t - d2x * dy_t);
-		if (currentSlot == Slot.seite && !inv) {
+		if (currentSlot == Slot.seite /*&& !inv*/) {
 			w *= (-1);
 		}
 
