@@ -315,6 +315,9 @@ public class NavigationAT implements INavigation {
 		this.pose.setHeading(heading);
 		
 	}
+	public synchronized void setPoint(float x, float y){
+		this.pose.setLocation(x, y);
+	}
 
 	/*
 	 * (non-Javadoc)

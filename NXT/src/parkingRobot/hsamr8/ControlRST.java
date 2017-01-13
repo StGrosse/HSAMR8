@@ -169,7 +169,7 @@ public class ControlRST implements IControl {
 	int setPosePhase = 1;
 	static final float v_sp = 0.07f;
 	static final float kp_sp = 20.0f;// 20 10
-	static final float kd_sp = 100.0f;// 30 20höherer D-Anteil verhindert
+	static final float kd_sp = 200.0f;// 30 20höherer D-Anteil verhindert
 										// Schwingen nicht, verlangsamt es nur
 	double eold_sp = 0;
 	double strecke = 0;
@@ -371,7 +371,7 @@ public class ControlRST implements IControl {
 	 */
 	public void setStartTime(int startTime) {
 		this.startTime = startTime / 1000.0f;
-		lock=20;
+		lock=15;
 		kurven=0;
 	}
 	
@@ -657,14 +657,14 @@ public class ControlRST implements IControl {
 
 		// zuerst drehen in die richtige Richtung
 		if (this.setPosePhase == 1) {
-			if (Math.abs(deltax3) > Math.PI / 50) {// Annahme:drehen mit 45°/s
+			if (Math.abs(deltax3) > Math.PI / 70) {// Annahme:drehen mit 45°/s
 													// --> 4.5°/Abtastung -->
 													// maximaler Fehler pi/40
 				this.setVelocity(0.0);
 				if (deltax3 < 0)
-					this.setAngularVelocity(+Math.PI / 5);
+					this.setAngularVelocity(+Math.PI / 7);
 				else if (deltax3 > 0)
-					this.setAngularVelocity(-Math.PI / 5);
+					this.setAngularVelocity(-Math.PI / 7);
 				this.innerLoop();
 			} else {// nur einmal abgearbeitet
 				this.monitor.writeControlComment("Abw. 1. Drehen: deltax3: " + deltax3 + " x: "
@@ -713,12 +713,12 @@ public class ControlRST implements IControl {
 					deltaphi += 2 * Math.PI;
 			}
 			this.monitor.writeControlComment("deltaphi:" + deltaphi);
-			if (Math.abs(deltaphi) > Math.PI / 60 && !ParkStatus) {
+			if (Math.abs(deltaphi) > Math.PI / 70 && !ParkStatus) {
 				this.setVelocity(0.0);
 				if (deltaphi < 0)
-					this.setAngularVelocity(+Math.PI / 6);
+					this.setAngularVelocity(+Math.PI / 7);
 				else if (deltaphi > 0)
-					this.setAngularVelocity(-Math.PI / 6);
+					this.setAngularVelocity(-Math.PI / 7);
 				this.innerLoop();
 			}
 
@@ -1407,13 +1407,23 @@ public class ControlRST implements IControl {
 		double x = this.currentPosition.getX();
 		double y = this.currentPosition.getY();
 		if (this.backward){
-			if(y>1.0 && x>1.7 && x<2.0){
-				if(y>1.05 && x>1.75) return dest.right;
+			monitor.writeControlComment("backward");
+			if(y>1.0 && x>1.5 && x<2.0){
+				if(y>0.85){
+					monitor.writeControlComment("Kurve 1 möglich");
+					return dest.right;
+					
+				}
+				
 				else return dest.no;
 			}
-			else if(x>3.4){
-				if(x>3.45) return dest.right;
-				else return dest.no;
+			else if(x>3.0){
+				/*if(x>3.25){
+					monitor.writeControlComment("Kurve 0 möglich");
+					return dest.right;
+					
+				}*/
+				return dest.no;
 			}
 			else return null;
 		}
@@ -1423,14 +1433,14 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve1: x:"+x+" y:"+y);
 			if(this.backward){
 				if(y<0.15 && x >1.7){
-					monitor.writeControlComment("Kurve 1 möglich");
+					monitor.writeControlComment("Kurve 1 möglich: "+this.lock);
 					return dest.right;// Kurve 1
 				}
 				else return dest.no;
 			}
 			else{
 				if (y < 0.05 && x > 1.65) {
-					monitor.writeControlComment("Kurve 1 möglich");
+					monitor.writeControlComment("Kurve 1 möglich: "+this.lock);
 					return dest.left;// Kurve 1
 				} else
 					return dest.no;

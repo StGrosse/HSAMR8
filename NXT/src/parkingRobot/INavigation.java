@@ -64,6 +64,8 @@ public interface INavigation {
 	
 	public void setPose(float heading);
 	
+	public void setPoint(float x, float y);
+	
 	
 	// Subclasses
 	

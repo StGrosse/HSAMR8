@@ -91,6 +91,7 @@ public class GuidanceAT {
 	static Line[] map = {line0, line1, line2, line3, line4, line5, line6, line7};
 	
 	static int phase=1;
+	static boolean neu=true;
 	
 	
 	/**
@@ -303,7 +304,7 @@ public class GuidanceAT {
 		else if(phase==5){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			Pose currentPose=navigation.getPose();
-			if(currentPose.getX()>0.02 && currentPose.getY()<0.05 && control.getAmountOfCurves()==4){
+			if(currentPose.getX()>0.005 && currentPose.getY()<0.01 && control.getAmountOfCurves()==4){
 				phase=6;
 				navigation.setPose(0.0f);
 				control.setCtrlMode(ControlMode.INACTIVE);
@@ -325,6 +326,7 @@ public class GuidanceAT {
 				navigation.setInv(true);
 				control.setBackward(true);
 				navigation.setPose((float)(3*Math.PI/2));
+				neu=true;
 				
 			}
 			return false;
@@ -332,12 +334,13 @@ public class GuidanceAT {
 		else if(phase==7){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			Pose currentPose=navigation.getPose();
-			if(control.getAmountOfCurves()==1){
+			if(/*control.getAmountOfCurves()==1 &&*/ neu){
 				navigation.setLine(0);
 				navigation.setPose((float)Math.PI);
-				
+				navigation.setPoint(1.78f, 0.0f);
+				neu=false;
 			}
-			if(currentPose.getX()>3.58){
+			if(currentPose.getX()>3.5 || currentPose.getX()<0.05){
 				phase=8;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
