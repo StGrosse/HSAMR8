@@ -784,8 +784,8 @@ public class ControlRST implements IControl {
 				0, 4);
 		LCD.drawString("a: " + Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
 				+ Math.round(this.currentPosition.getHeading()*100)/100.0f, 0, 5);
-		/*LCD.drawString(""+this.currentSlot, 0, 2);
-		LCD.drawString(""+T, 0, 3);*/
+		LCD.drawString(""+this.currentSlot, 0, 2);
+//		LCD.drawString(""+T, 0, 3);
 		LCD.drawString(""+path[0], 0, 0);
 		LCD.drawString(""+path[1], 0, 1);
 		LCD.drawString(""+path[2], 0, 2);
@@ -869,7 +869,7 @@ public class ControlRST implements IControl {
 		monitor.writeControlVar("v", "" + v);
 		this.setVelocity(v);
 		double w = 1 / (v * v) * (dx * d2y_t - d2x * dy_t);
-		if (currentSlot == Slot.seite && !inv) {
+		if (currentSlot == Slot.seite /*&& !inv*/) {
 			w *= (-1);
 		}
 
@@ -1256,7 +1256,7 @@ public class ControlRST implements IControl {
 				kurven++;
 			} else {
 				this.setVelocity(0.0);
-				this.setAngularVelocity(-Math.PI / 3);
+				this.setAngularVelocity(-Math.PI / 6);
 				this.innerLoop();
 				// this.update_VWCTRL_Parameter();
 				// this.exec_VWCTRL_ALGO();
@@ -1277,7 +1277,7 @@ public class ControlRST implements IControl {
 				this.kurven++;
 			} else {
 				this.setVelocity(0.0);
-				this.setAngularVelocity(Math.PI / 3);
+				this.setAngularVelocity(Math.PI / 6);
 				this.innerLoop();
 				// this.update_VWCTRL_Parameter();
 				// this.exec_VWCTRL_ALGO();
@@ -1408,7 +1408,7 @@ public class ControlRST implements IControl {
 		double y = this.currentPosition.getY();
 		if (this.backward){
 			monitor.writeControlComment("backward");
-			if(y>1.0 && x>1.5 && x<2.0){
+			if((y>1.0 || y<0.2) && x>1.5 && x<2.0){
 				if(y>0.85){
 					monitor.writeControlComment("Kurve 1 möglich");
 					return dest.right;

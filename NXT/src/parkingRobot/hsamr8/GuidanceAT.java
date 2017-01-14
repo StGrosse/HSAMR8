@@ -134,7 +134,7 @@ public class GuidanceAT {
 					if ( lastStatus != CurrentStatus.DRIVING ){
 						control.setCtrlMode(ControlMode.LINE_CTRL);
 					}
-					if(beispielsequenz1(navigation, control, monitor)){
+					if(beispielsequenz2(navigation, control, monitor)){
 						currentStatus=CurrentStatus.INACTIVE;
 					}
 					//While action				
@@ -334,7 +334,7 @@ public class GuidanceAT {
 		else if(phase==7){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			Pose currentPose=navigation.getPose();
-			if(/*control.getAmountOfCurves()==1 &&*/ neu){
+			if(control.getAmountOfCurves()==1 && neu){
 				navigation.setLine(0);
 				navigation.setPose((float)Math.PI);
 				navigation.setPoint(1.78f, 0.0f);
@@ -389,58 +389,60 @@ public class GuidanceAT {
 		else return false;
 
 	}
-	private static boolean beispielsequenz2(INavigation navigation, IControl control){
+	private static boolean beispielsequenz2(INavigation navigation, IControl control, IMonitor monitor){
 		if(phase==1){
 			navigation.setDetectionState(false);
-			control.setDestination(0.0, 0.15, 0.02);
-			control.setCtrlMode(ControlMode.SETPOSE);
-			if(control.getParkStatus()){
-				phase=2;
-				control.setCtrlMode(ControlMode.INACTIVE);
-				float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
-				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.3f,0.0f),0);
-			}
+			control.setDestination(0.0, 0.1, 0.02);
+			phase=2;
 			return false;
 		}
 		else if(phase==2){
-			control.setCtrlMode(ControlMode.PARK_CTRL);
+			control.setCtrlMode(ControlMode.SETPOSE);
 			if(control.getParkStatus()){
 				phase=3;
 				control.setCtrlMode(ControlMode.INACTIVE);
-				float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
-				control.setPath(a, true,new Pose(0.6f,-0.3f,0.0f), new Pose(0.15f,0.02f,0.0f),0);			
+				
+				
+				
+				
+				float[]a={-0.06746355685131149f,1.8892128279883287f,-11.545189504373118f,13.994169096209816f};
+				control.setPath(a, false, navigation.getPose(), new Pose(0.45f,-0.28f,0.0f),0);
 			}
-			return false;
+		return false;
 		}
 		else if(phase==3){
 			control.setCtrlMode(ControlMode.PARK_CTRL);
 			if(control.getParkStatus()){
 				phase=4;
 				control.setCtrlMode(ControlMode.INACTIVE);
+				float[]a={-0.06746355685131149f,1.8892128279883287f,-11.545189504373118f,13.994169096209816f};
+				control.setPath(a, true,new Pose(0.45f,-0.28f,0.0f), new Pose(0.1f,0.02f,0.0f),0);			
+			}
+			return false;
+		}
+		else if(phase==4){
+			control.setCtrlMode(ControlMode.PARK_CTRL);
+			if(control.getParkStatus()){
+				phase=5;
+				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(true);
 				control.setStartTime(20);//Behelf
 			}
 			return false;
 		}
-		else if(phase==4){
+		else if(phase==5){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			Pose pose=navigation.getPose();
-			if(pose.getX()>1.77 && pose.getY()>0.02 &&pose.getHeading()>Math.PI*(1-1/40)){
-				phase=5;
-				control.setCtrlMode(ControlMode.INACTIVE);
-				navigation.setDetectionState(false);			
-				float[] a={1.7821411951148907f,-0.21733935376707336f,5.674972015028288f,-8.049605695065111f};
-				control.setPath(a, false, new Pose(0.02f,1.78f,0.0f), new Pose(0.45f,2.1f,0.0f),1);
-			}
-			return false;
-		}
-		else if(phase==5){
-			control.setCtrlMode(ControlMode.PARK_CTRL);
-			if(control.getParkStatus()){
+			if(pose.getX()>1.77 && pose.getY()>0.02 && pose.getHeading()>Math.PI/2*(1-1/40)){
 				phase=6;
 				control.setCtrlMode(ControlMode.INACTIVE);
-				float[] a={1.7821411951148907f,-0.21733935376707336f,5.674972015028288f,-8.049605695065111f};
-				control.setPath(a, true, new Pose(0.45f,2.1f,0.0f),new Pose(0.02f,1.78f,0.0f),1);
+				navigation.setDetectionState(false);	
+				
+				
+				
+				
+				float[] a={1.7841777777777768f,-0.42666666666656283f,11.333333333330302f,-22.222222222218991f};
+				control.setPath(a, false, new Pose(0.02f,1.78f,(float)(Math.PI/2)), new Pose(0.32f,2.08f,(float)(Math.PI/2)),1);
 			}
 			return false;
 		}
@@ -449,11 +451,22 @@ public class GuidanceAT {
 			if(control.getParkStatus()){
 				phase=7;
 				control.setCtrlMode(ControlMode.INACTIVE);
+				float[] a={1.7841777777777768f,-0.42666666666656283f,11.333333333330302f,-22.222222222218991f};
+				control.setPath(a, true, new Pose(0.32f,2.08f,(float)(Math.PI/2)),new Pose(0.02f,1.78f,(float)(Math.PI/2)),1);
+			}
+			return false;
+		}
+		else if(phase==7){
+			control.setCtrlMode(ControlMode.PARK_CTRL);
+			if(control.getParkStatus()){
+				phase=8;
+				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(true);
+				control.setStartTime(20);
 			}
 			else return false;
 		}
-		else if(phase==7){
+		else if(phase==8){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			return false;
 		}
