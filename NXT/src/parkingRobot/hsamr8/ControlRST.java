@@ -220,7 +220,26 @@ public class ControlRST implements IControl {
 			IMonitor monitor) {
 		// for(int i=0;i<=9;i++)fehler.add(0.0);
 		// for(int i=0;i<=9;i++)geschw.add(0.0);
-
+		monitor.addControlVar("wZielR");
+		float akku=Battery.getVoltage();
+		if(akku<=7.3){
+			this.angVelPerPercent=16.0f;
+			this.offsetAngVelPerPercent=-155.5f;
+		}
+		else if(akku>7.3 && akku<=7.6){
+			this.angVelPerPercent=16.5f;
+			this.offsetAngVelPerPercent=-154.7f;
+		}
+		else if(akku>7.6 && akku<=7.7){
+			this.angVelPerPercent=16.9f;
+			this.offsetAngVelPerPercent=-156.5f;
+		}
+		else if(akku>7.7 && akku<=8.3){
+			this.angVelPerPercent=18.2f;
+			this.offsetAngVelPerPercent=-167.4f;
+			
+		}
+		
 		this.perception = perception;
 		this.navigation = navigation;
 		this.monitor = monitor;
@@ -255,24 +274,6 @@ public class ControlRST implements IControl {
 		// monitor.addControlVar("w");
 
 		monitor.addControlVar("wZielR");
-		float akku=Battery.getVoltage();
-		if(akku<=7.3){
-			this.angVelPerPercent=16.0f;
-			this.offsetAngVelPerPercent=-155.5f;
-		}
-		else if(akku>7.3 && akku<=7.6){
-			this.angVelPerPercent=16.5f;
-			this.offsetAngVelPerPercent=-154.7f;
-		}
-		else if(akku>7.6 && akku<=7.7){
-			this.angVelPerPercent=16.9f;
-			this.offsetAngVelPerPercent=-156.5f;
-		}
-		else if(akku>7.7 && akku<=8.3){
-			this.angVelPerPercent=18.2f;
-			this.offsetAngVelPerPercent=-167.4f;
-			
-		}
 		
 
 		this.ctrlThread = new ControlThread(this);
@@ -507,8 +508,8 @@ public class ControlRST implements IControl {
 		// Steuerung der Motoren (ohne Regelung) auf Basis von experimentell
 		// bestimmter Proportionalitätskonstante
 		if (this.newVW) {
-//			if (((this.currentCTRLMODE != (ControlMode.LINE_CTRL))&& (this.currentCTRLMODE != ControlMode.VW_CTRL)) || (curve!=dest.no)) {
-			if(this.currentCTRLMODE != ControlMode.LINE_CTRL || curve!=dest.no){
+			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) || (curve!=dest.no)) {
+			
 				if (speed[0] > 0) {
 					steuerL = (int) ((Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
 					// w_wheel=angVelPerPercent*power+offsetAngVelPerPercent
