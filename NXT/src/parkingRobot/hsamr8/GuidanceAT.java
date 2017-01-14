@@ -1,13 +1,13 @@
 /**
 
-
+        Habs mal geändert....:
 
         Änderungen:
-        - switch/case nur noch mit Modus ( Status wird nicht mehr geprüft sondern nur noch gesetzt für HMI )
-        - --> zusätzlicher PAUSE Modus und DISCONNECT Modus
+        - In Ausparken die berechneten Startkoordinaten(navigation.getPose.get....) getauscht(nur für rechte Lücke (line ==1)):
+                    xs = navigation.getPose().getY();
+					ys = navigation.getPose().getX();
+					da andere Koordinaten für
 
-        - Schönheitskorrekturen
-        - kleine Fehler behoben
 
 
 */
@@ -233,7 +233,7 @@ public class GuidanceAT {
 				float  xz1, yz1;
 
 				if (lastModus != CurrentModus.EINPARKEN) {
-					
+
 					xz1 = Zielkoordinaten[0];
 					yz1 = Zielkoordinaten[1];
 
@@ -276,8 +276,17 @@ public class GuidanceAT {
 				float xs, ys, xz, yz;
 
 				if (lastModus != CurrentModus.AUSPARKEN) {
-					xs = navigation.getPose().getX();
-					ys = navigation.getPose().getY();
+
+                    if(line==1)
+                    {
+                        xs = navigation.getPose().getY();
+                        ys = navigation.getPose().getX();
+                    }
+                    else
+                    {
+                        xs = navigation.getPose().getX();
+                        ys = navigation.getPose().getY();
+                    }
 
 					xz = Startkoordinaten[0]; // beim Einparken gesetzt,
 												// Startposition vom Einparken =
@@ -286,8 +295,17 @@ public class GuidanceAT {
 												// Startposition vom Einparken =
 												// Zielposition für Ausparken
 
-					control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(),
-							new Pose(xz, yz, navigation.getPose().getHeading()),line);
+                    if(line == 1)
+                    control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line);
+
+                    else
+					control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line);
+
+					/**
+					control.setPath(Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1), false, new Pose(Startkoordinaten[0], Startkoordinaten[1],navigation.getPose().getHeading()),
+                    new Pose(xz1, yz1, navigation.getPose().getHeading()), line);
+                    */
+
 					control.setCtrlMode(ControlMode.PARK_CTRL);
 
 					navigation.setDetectionState(false);
@@ -520,8 +538,8 @@ public class GuidanceAT {
 							if ((x - xp_b) < d && (x - xp_b) > -d) {
 								erg = true;
 								line=4;
-								Startkoordinaten[0] =navigation.getPose().getX(); 
-								Startkoordinaten[1] = navigation.getPose().getY(); 
+								Startkoordinaten[0] =navigation.getPose().getX();
+								Startkoordinaten[1] = navigation.getPose().getY();
 								Zielkoordinaten[0] = xp_b - lp_x + a;
 								Zielkoordinaten[1] = y + b;
 							}
@@ -534,8 +552,8 @@ public class GuidanceAT {
                             {
 								erg = true;
 								line=1;
-								Startkoordinaten[0] =navigation.getPose().getY(); 
-								Startkoordinaten[1] = navigation.getPose().getX(); 
+								Startkoordinaten[0] =navigation.getPose().getY();
+								Startkoordinaten[1] = navigation.getPose().getX();
 								Zielkoordinaten[0] = yp_b + lp_y - a;
 								Zielkoordinaten[1] = x + b;
 							}
@@ -568,8 +586,8 @@ public class GuidanceAT {
 					if ((xp_b - x) < d && (xp_b - x) > -d) {
 						erg = true;
 						line=0;
-						Startkoordinaten[0] =navigation.getPose().getX(); 
-						Startkoordinaten[1] = navigation.getPose().getY(); 
+						Startkoordinaten[0] =navigation.getPose().getX();
+						Startkoordinaten[1] = navigation.getPose().getY();
 						Zielkoordinaten[0] = xp_b + lp_x - a;
 						Zielkoordinaten[1] = y - b;
 					}
@@ -585,8 +603,8 @@ public class GuidanceAT {
 					if ((x - xp_b) < d && (x - xp_b) > -d) {
 						erg = true;
 						line=4;
-						Startkoordinaten[0] =navigation.getPose().getX(); 
-						Startkoordinaten[1] = navigation.getPose().getY(); 
+						Startkoordinaten[0] =navigation.getPose().getX();
+						Startkoordinaten[1] = navigation.getPose().getY();
 						Zielkoordinaten[0] = xp_b - lp_x + a;
 						Zielkoordinaten[1] = y + b;
 					}
@@ -598,8 +616,8 @@ public class GuidanceAT {
 					if ((yp_b - y) < d && (yp_b - y) > -d) {
 						erg = true;
 						line=1;
-						Startkoordinaten[0] =navigation.getPose().getY(); 
-						Startkoordinaten[1] = navigation.getPose().getX(); 
+						Startkoordinaten[0] =navigation.getPose().getY();
+						Startkoordinaten[1] = navigation.getPose().getX();
 						Zielkoordinaten[0] = yp_b + lp_y - a;
 						Zielkoordinaten[1] = x + b;
 					}
