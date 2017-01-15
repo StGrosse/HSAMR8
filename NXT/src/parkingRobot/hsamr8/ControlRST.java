@@ -511,10 +511,10 @@ public class ControlRST implements IControl {
 			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) || (curve!=dest.no)) {
 			
 				if (speed[0] > 0) {
-					steuerL = (int) ((Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
+					steuerL = (int) ((2*Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
 					// w_wheel=angVelPerPercent*power+offsetAngVelPerPercent
 				} else if (speed[0] < 0) {
-					steuerL = -(int) ((Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
+					steuerL = -(int) ((2*Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
 
 				}
 				if (speed[1] > 0) {
