@@ -113,6 +113,7 @@ public interface IControl {
 	 * @param inv false---y(x), true---x(y)
 	 * @param start start pose
 	 * @param ziel destination pose
+	 * @param line line on which the slot is on (0,1 or 4)
 	 */
 	public void setPath(float[] path, boolean inv, Pose start, Pose ziel, int line);
 }
