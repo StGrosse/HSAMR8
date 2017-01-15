@@ -31,7 +31,7 @@ public class ControlRST implements IControl {
 	 * stop {@value}6 --- Beispielsequenz 1.Verteidigung {@value}7 --- test
 	 * setpose {@value}8 --- test pathctrl
 	 */
-	int option = 2;
+	int option = 3;
 
 	// general constants:
 	static final int u_r_max = 40; // power maximum
@@ -517,8 +517,8 @@ public class ControlRST implements IControl {
 			// rechts:
 			// "+(int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR));
 			else {
-				steuerL = 9;
-				steuerR = 9;
+				steuerL = 10;
+				steuerR = 10;
 			}
 
 			u_old_l = steuerL;
@@ -541,7 +541,7 @@ public class ControlRST implements IControl {
 
 		double u_l = u_old_l;
 		double u_r = u_old_r;
-		if (this.currentCTRLMODE == ControlMode.LINE_CTRL || !this.newVW) {
+		//if (this.currentCTRLMODE == ControlMode.LINE_CTRL || !this.newVW) {
 			esuml_vw += e_l;
 			esumr_vw += e_r;
 			// if(e_l<5)esuml_vw=0;
@@ -563,7 +563,7 @@ public class ControlRST implements IControl {
 
 			this.eoldl_vw = e_l;
 			this.eoldr_vw = e_r;
-		}
+		//}
 		double pw_l = Math.abs(u_old_l + u_l) > 100 ? 100 : u_old_l + u_l;
 		double pw_r = Math.abs(u_old_r + u_r) > 100 ? 100 : u_old_r + u_r;
 		u_old_l = (int) pw_l;
@@ -880,9 +880,10 @@ public class ControlRST implements IControl {
 		// Umgehung des Guidance-Moduls zum Testen von v/w-Control --> manuelles
 		// Setzen von v und omega --> Sprungantwort
 		else if (option == 3) {
-			this.setAngularVelocity(Math.PI / 2); // winkelgeschwindigkeit in
+			this.setAngularVelocity(0.0); // winkelgeschwindigkeit in
 													// 1/s
-			this.setVelocity(0.0); // Geschwindigkeit in m/s
+			this.setVelocity(0.10); // Geschwindigkeit in m/s
+			this.innerLoop();
 			// exec_VWCTRL_ALGO();
 		} else if (option == 4) {
 			this.calcAngVelPerPercent();
