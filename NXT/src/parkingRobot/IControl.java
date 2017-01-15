@@ -113,9 +113,20 @@ public interface IControl {
 	 * @param inv false---y(x), true---x(y)
 	 * @param start start pose
 	 * @param ziel destination pose
+	 * @param line line the parking slot is on (0,1 or 4)
 	 */
 	public void setPath(float[] path, boolean inv, Pose start, Pose ziel, int line);
+	
+	/**
+	 * 
+	 * @return kurven amount of curves driven since last reset
+	 */
 	public int getAmountOfCurves();
+	
+	/**
+	 *  
+	 * @param backward true if robot shall drive the parcour in the opposite direction
+	 */
 	public void setBackward(boolean backward);
 }
 
