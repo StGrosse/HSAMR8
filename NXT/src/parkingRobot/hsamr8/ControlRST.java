@@ -31,7 +31,7 @@ public class ControlRST implements IControl {
 	 * stop {@value}6 --- Beispielsequenz 1.Verteidigung {@value}7 --- test
 	 * setpose {@value}8 --- test pathctrl
 	 */
-	int option = 3;
+	int option = 2;
 
 	// general constants:
 	static final int u_r_max = 40; // power maximum
@@ -255,7 +255,7 @@ public class ControlRST implements IControl {
 		monitor.addControlVar("wZielR");
 		float akku=Battery.getVoltage();
 		//monitor.writeControlComment("akku");
-		/*if(akku<=7.5){
+		if(akku<=7.5){
 			this.angVelPerPercent=16.0f;
 			this.offsetAngVelPerPercent=-153.04f;
 		}
@@ -267,11 +267,11 @@ public class ControlRST implements IControl {
 			this.angVelPerPercent=16.9f;
 			this.offsetAngVelPerPercent=-156.5f;
 		}
-		else if(akku>7.7 && akku<=8.3){*/
+		else if(akku>7.7 && akku<=8.3){
 			this.angVelPerPercent=18.2f;
 			this.offsetAngVelPerPercent=-167.4f;
 			
-		//}
+		}
 		
 
 		this.ctrlThread = new ControlThread(this);
@@ -1351,8 +1351,8 @@ public class ControlRST implements IControl {
 		if (zähler < 100 /* && !first */) {
 			this.leftMotor.setPower(power);
 			this.rightMotor.setPower(power);
-			this.encoderSumL += this.angleMeasurementLeft.getAngleSum();
-			this.encoderSumR += this.angleMeasurementRight.getAngleSum();
+			//this.encoderSumL += this.angleMeasurementLeft.getAngleSum();
+			//this.encoderSumR += this.angleMeasurementRight.getAngleSum();
 			this.time += this.angleMeasurementLeft.getDeltaT();
 			zähler++;
 		}

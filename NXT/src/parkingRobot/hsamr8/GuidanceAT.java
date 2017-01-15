@@ -1,20 +1,7 @@
-/**
-
-        Habs mal geändert....:
-
-        Änderungen:
-        - In Ausparken die berechneten Startkoordinaten(navigation.getPose.get....) getauscht(nur für rechte Lücke (line ==1)):
-                    xs = navigation.getPose().getY();
-					ys = navigation.getPose().getX();
-					da andere Koordinaten für
-
-
-
-*/
 
 package parkingRobot.hsamr8;
 
-import parkingRobot.INavigation.ParkingSlot; // zusätzlich eingefügt
+import parkingRobot.INavigation.ParkingSlot;
 import parkingRobot.INavigation.ParkingSlot.ParkingSlotStatus;
 import lejos.nxt.Button;
 import lejos.nxt.MotorPort;
@@ -35,24 +22,34 @@ import parkingRobot.hsamr8.HmiPLT;
 import parkingRobot.hsamr8.NavigationAT;
 import parkingRobot.hsamr8.PerceptionPMP;
 
-public class GuidanceAT {
+/**
+ * 	Hauptklasse Guidance - HS AMR
+ */
+public class GuidanceAT
+{
 
-	static float[] Koeffizienten = new float[4];
-	static float[] Zielkoordinaten = new float[2];
-	static float[] Startkoordinaten = new float[2];
-	static int line=0;
+	static float[] Koeffizienten = new float[4];	// Polynomkoeffizienten
+	static float[] Zielkoordinaten = new float[2];	// allgemeine Zielkoordinaten für Ein-/Ausparken
+	static float[] Startkoordinaten = new float[2];	// allgemeine Startkoordinaten für Ein-/Ausparken
+	static int line=0;								// zum Speichern der aktuellen Linie
 
-	public enum CurrentStatus {
+	/**
+	 * 	Roboterstatus Enumeration für späteres Abfragen aus dem HMI Modul
+	 * 	spiegelt aktuellen Roboterstatus wieder, je nach Modus
+	 */
+	public enum CurrentStatus	// Roboterstatus
+	{
 		DRIVING, INACTIVE, EXIT
 	}
 
-	private enum CurrentModus {
+	private enum CurrentModus // Robotermodi
+	{
 		SCOUT, PARK_NOW, PARK_THIS, EINPARKEN, AUSPARKEN, PAUSE, DISCONNECT
 	}
 
-	protected static CurrentStatus currentStatus = CurrentStatus.INACTIVE;
-	protected static CurrentModus currentModus = CurrentModus.PAUSE;
-	protected static CurrentModus lastModus = CurrentModus.PAUSE;
+	protected static CurrentStatus currentStatus = CurrentStatus.INACTIVE;	// aktueller Status
+	protected static CurrentModus currentModus = CurrentModus.PAUSE;		// aktueller Modus
+	protected static CurrentModus lastModus = CurrentModus.PAUSE;			// zuletzt verwendeter Modus
 
 	/**
 	 * one line of the map of the robot course. The course consists of a closed
@@ -60,14 +57,14 @@ public class GuidanceAT {
 	 * ends and the last line ends where the first line starts. This
 	 * documentation for line0 hold for all lines.
 	 */
-	static Line line0 = new Line(0, 0, 180, 0);
-	static Line line1 = new Line(180, 0, 180, 60);
+	static Line line0 = new Line(0  , 0 , 180, 0 );
+	static Line line1 = new Line(180, 0 , 180, 60);
 	static Line line2 = new Line(180, 60, 150, 60);
 	static Line line3 = new Line(150, 60, 150, 30);
-	static Line line4 = new Line(150, 30, 30, 30);
-	static Line line5 = new Line(30, 30, 30, 60);
-	static Line line6 = new Line(30, 60, 0, 60);
-	static Line line7 = new Line(0, 60, 0, 0);
+	static Line line4 = new Line(150, 30, 30 , 30);
+	static Line line5 = new Line(30 , 30, 30 , 60);
+	static Line line6 = new Line(30 , 60, 0  , 60);
+	static Line line7 = new Line(0  , 60, 0  , 0 );
 	/**
 	 * map of the robot course. The course consists of a closed chain of
 	 * straight lines. Thus every next line starts where the last line ends and
@@ -85,69 +82,79 @@ public class GuidanceAT {
 	 *             exception for thread management
 	 */
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception
+	{
 
-		currentStatus = CurrentStatus.INACTIVE;
-		currentModus = CurrentModus.PAUSE;
-		lastModus = CurrentModus.PAUSE;
+		currentStatus = CurrentStatus.INACTIVE;	// Start: Inactivestatus
+		currentModus  = CurrentModus.PAUSE;		// Start: Pausemodus
+		lastModus = CurrentModus.PAUSE;			// Start: Pausemodus
 
+		// Objekte anlegen:
 		NXTMotor leftMotor = new NXTMotor(MotorPort.B);
 		NXTMotor rightMotor = new NXTMotor(MotorPort.C);
-
 		IMonitor monitor = new Monitor();
-
 		IPerception perception = new PerceptionPMP(leftMotor, rightMotor, monitor);
-		// perception.calibrateLineSensors();
-
 		INavigation navigation = new NavigationAT(perception, monitor);
 		IControl control = new ControlRST(perception, navigation, leftMotor, rightMotor, monitor);
 		INxtHmi hmi = new HmiPLT(perception, navigation, control, monitor);
+		// perception.calibrateLineSensors();
 
 		monitor.startLogging();
 
-		while (true) {
+		while (true) 	// Endlosschleife
+		{
 			// showData(navigation, perception);
-			monitor.writeGuidanceComment("Modus: " + currentModus + ", Status: " + currentStatus);
 
-			switch (currentModus) {
+			switch (currentModus)
+			{
 			/********************************************************************************************************************************************************/
-			case SCOUT:
+			case SCOUT: // wenn Modus Scout
 
-				if (lastModus != CurrentModus.SCOUT) {
-					control.setCtrlMode(ControlMode.LINE_CTRL);
-					navigation.setDetectionState(true);
-					currentStatus = CurrentStatus.DRIVING;
+				if (lastModus != CurrentModus.SCOUT)		// Initialbefehle (nur bei erstmaligen Aufruf)
+				{
+					control.setCtrlMode(ControlMode.LINE_CTRL);		// Linienverfolgung an
+					navigation.setDetectionState(true);				// Parklückendetection an
+					currentStatus = CurrentStatus.DRIVING;			// Status Driving für Tablet
 				}
 
-				lastModus = currentModus;
+				lastModus = currentModus;		// damit Initialbefehle nur ein mal aufgerufen werden
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown()) {
+				// Zustandswechsel:
+
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown()) 				// Abfrage ob Wechsel in Pause Modus
+				{
 					currentModus = CurrentModus.PAUSE;
-					while (Button.ENTER.isDown()) {
+					while (Button.ENTER.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown()) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown())	// Abfrage ob Wechsel in Disconnect Modus
+				{
 					currentModus = CurrentModus.DISCONNECT;
-					while (Button.ESCAPE.isDown()) {
+					while (Button.ESCAPE.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW)		// Abfrage ob Wechsel in Park Now Modus
+				{
 					currentModus = CurrentModus.PARK_NOW;
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS) 		// Abfrage ob Wechsel in Park This Modus
+				{
 					currentModus = CurrentModus.PARK_THIS;
 				}
 
 				break;
 			/********************************************************************************************************************************************************/
-			case PARK_NOW:
+			case PARK_NOW:// wenn Modus Park_Now
 
-				if (lastModus != CurrentModus.PARK_NOW) {
+				if (lastModus != CurrentModus.PARK_NOW)		// Initialbefehle (nur bei erstmaligen Aufruf)
+				{
 					control.setCtrlMode(ControlMode.LINE_CTRL);
 					navigation.setDetectionState(true);
 					currentStatus = CurrentStatus.DRIVING;
@@ -155,40 +162,48 @@ public class GuidanceAT {
 
 				lastModus = currentModus;
 
-				if (pruefeAufLuecke(navigation.getPose().getX(), navigation.getPose().getY(), navigation, currentModus,
-						hmi)) // Roboter befindet sich im Abstand d (d in
-								// pruefeAufLuecke definiert) von der Parklücke
+				if (pruefeAufLuecke(navigation.getPose().getX(), navigation.getPose().getY(), navigation, currentModus,	hmi))	// wenn Parklücke in der Nähe zum Einparken wechseln
 				{
 					currentModus = CurrentModus.EINPARKEN;
 				}
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown()) {
+
+				//Zustandswechsel:
+
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown())
+				{
 					currentModus = CurrentModus.PAUSE;
-					while (Button.ENTER.isDown()) {
+					while (Button.ENTER.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown()) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown())
+				{
 					currentModus = CurrentModus.DISCONNECT;
-					while (Button.ESCAPE.isDown()) {
+					while (Button.ESCAPE.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS)
+				{
 					currentModus = CurrentModus.PARK_THIS;
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT)
+				{
 					currentModus = CurrentModus.SCOUT;
 				}
 
 				break;
 			/********************************************************************************************************************************************************/
-			case PARK_THIS:
+			case PARK_THIS:		// wenn Modus Park_This
 
-				if (lastModus != CurrentModus.PARK_THIS) {
+				if (lastModus != CurrentModus.PARK_THIS)		// Initialbefehle (nur bei erstmaligen Aufruf)
+				{
 					control.setCtrlMode(ControlMode.LINE_CTRL);
 					navigation.setDetectionState(true);
 					currentStatus = CurrentStatus.DRIVING;
@@ -196,88 +211,96 @@ public class GuidanceAT {
 
 				lastModus = currentModus;
 
-				if (pruefeAufLuecke(navigation.getPose().getX(), navigation.getPose().getY(), navigation, currentModus,
-						hmi)) // Roboter befindet sich im Abstand d (d in
-								// pruefeAufLuecke definiert) von der Parklücke
+				if (pruefeAufLuecke(navigation.getPose().getX(), navigation.getPose().getY(), navigation, currentModus,	hmi)) // wenn Parklücke in der Nähe zum Einparken wechseln
 				{
 					currentModus = CurrentModus.EINPARKEN;
 				}
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown()) {
+
+				// Zustandswechsel
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown())
+				{
 					currentModus = CurrentModus.PAUSE;
-					while (Button.ENTER.isDown()) {
+					while (Button.ENTER.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown()) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown())
+				{
 					currentModus = CurrentModus.DISCONNECT;
-					while (Button.ESCAPE.isDown()) {
+					while (Button.ESCAPE.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW)
+				{
 					currentModus = CurrentModus.PARK_NOW;
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT)
+				{
 					currentModus = CurrentModus.SCOUT;
 				}
 
 				break;
 			/********************************************************************************************************************************************************/
-			case EINPARKEN: // Roboter steht vor Lücke und hat Zielkoordinaten
-							// für Einparken
+			case EINPARKEN: 		// wenn Modus Einparken
 
 				float  xz1, yz1;
 
-				if (lastModus != CurrentModus.EINPARKEN) {
-
+				if (lastModus != CurrentModus.EINPARKEN) 		// Initialbefehle (nur bei erstmaligen Aufruf)
+				{												// Zielkoordinaten setzen:
 					xz1 = Zielkoordinaten[0];
 					yz1 = Zielkoordinaten[1];
 
 					control.setPath(Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1), false, new Pose(Startkoordinaten[0], Startkoordinaten[1],navigation.getPose().getHeading()),
-							new Pose(xz1, yz1, navigation.getPose().getHeading()), line);
-					control.setCtrlMode(ControlMode.PARK_CTRL);
-
+							new Pose(xz1, yz1, navigation.getPose().getHeading()), line); 	// Pfad setzen
+					control.setCtrlMode(ControlMode.PARK_CTRL);								// Park Control anschalten, damit Pfad abgefahren wird
 					navigation.setDetectionState(false);
 					currentStatus = CurrentStatus.DRIVING;
 				}
 
 				lastModus = currentModus;
 
-				if (control.getParkStatus()) /**
-												 * zurück zu PAUSE, wenn fertig
-												 * mit Einparken
-												 */
+				// Zustandswechsel:
+
+				if (control.getParkStatus()) 					// zurück zu PAUSE, wenn fertig mit Einparken
 				{
 					currentModus = CurrentModus.PAUSE;
 				}
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown()) {
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown())
+				{
 					currentModus = CurrentModus.PAUSE;
-					while (Button.ENTER.isDown()) {
+					while (Button.ENTER.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown()) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown())
+				{
 					currentModus = CurrentModus.DISCONNECT;
-					while (Button.ESCAPE.isDown()) {
+					while (Button.ESCAPE.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
 				break;
 			/********************************************************************************************************************************************************/
-			case AUSPARKEN:
+			case AUSPARKEN:			// wenn Modus Ausparken
 
 				float xs, ys, xz, yz;
 
-				if (lastModus != CurrentModus.AUSPARKEN) {
+				if (lastModus != CurrentModus.AUSPARKEN) 	// Initialbefehle (nur bei erstmaligen Aufruf)
+				{											// Startkoordinaten setzen
 
-                    if(line==1)
+                    if(line==1)	 // bei rechter Parklücke Koordinaten vertauschen
                     {
                         xs = navigation.getPose().getY();
                         ys = navigation.getPose().getX();
@@ -288,23 +311,10 @@ public class GuidanceAT {
                         ys = navigation.getPose().getY();
                     }
 
-					xz = Startkoordinaten[0]; // beim Einparken gesetzt,
-												// Startposition vom Einparken =
-												// Zielposition für Ausparken
-					yz = Startkoordinaten[1]; // beim Einparken gesetzt,
-												// Startposition vom Einparken =
-												// Zielposition für Ausparken
+					xz = Startkoordinaten[0];  // Zielkoordinaten = Startkoordinaten von Einparken (da jetzt rückwärts ausgeparkt wird)
+					yz = Startkoordinaten[1];
 
-                    if(line == 1)
-                    control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line);
-
-                    else
-					control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line);
-
-					/**
-					control.setPath(Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1), false, new Pose(Startkoordinaten[0], Startkoordinaten[1],navigation.getPose().getHeading()),
-                    new Pose(xz1, yz1, navigation.getPose().getHeading()), line);
-                    */
+                    control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line); 	// Pfad setzen
 
 					control.setCtrlMode(ControlMode.PARK_CTRL);
 
@@ -314,33 +324,37 @@ public class GuidanceAT {
 
 				lastModus = currentModus;
 
-				if (control.getParkStatus()) /**
-												 * zurück zu SCOUT, wenn fertig
-												 * mit Ausparken
-												 */
+				// Zustandswechsel:
+
+				if (control.getParkStatus()) // zurück zu SCOUT, wenn fertig mit Ausparken
 				{
 					currentModus = CurrentModus.SCOUT;
 				}
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown()) {
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PAUSE || Button.ENTER.isDown())
+				{
 					currentModus = CurrentModus.PAUSE;
-					while (Button.ENTER.isDown()) {
+					while (Button.ENTER.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown()) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown())
+				{
 					currentModus = CurrentModus.DISCONNECT;
-					while (Button.ESCAPE.isDown()) {
+					while (Button.ESCAPE.isDown())
+{
 						Thread.sleep(1);
 					}
 				}
 
 				break;
 			/********************************************************************************************************************************************************/
-			case PAUSE:
+			case PAUSE:		// wenn Modus Pause
 
-				if (lastModus != CurrentModus.PAUSE) {
+				if (lastModus != CurrentModus.PAUSE) 				// Initialbefehle (nur bei erstmaligen Aufruf)
+				{
 					control.setCtrlMode(ControlMode.INACTIVE);
 					navigation.setDetectionState(false);
 					currentStatus = CurrentStatus.INACTIVE;
@@ -348,38 +362,46 @@ public class GuidanceAT {
 
 				lastModus = currentModus;
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT || Button.ENTER.isDown()) {
-					if (control
-							.getParkStatus()) /** wenn Roboter in Parklücke */
+				// auf Zustandswechsel prüfen:
+
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT || Button.ENTER.isDown())
+				{
+					if (control.getParkStatus()) 				// wenn Roboter in Parklücke zunächst ausparken
 						currentModus = CurrentModus.AUSPARKEN;
 
-					else {
+					else 										// sonst direkter Wechsel in Scout Modus
+					{
 						currentModus = CurrentModus.SCOUT;
 					}
 
-					while (Button.ENTER.isDown()) {
+					while (Button.ENTER.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW && !control.getParkStatus()) {
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_NOW && !control.getParkStatus()) 	// nur verfügbar wenn sich der Roboter nicht in einer Parklücke befindet
+				{
 					currentModus = CurrentModus.PARK_NOW;
 				}
 
-				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS && !control.getParkStatus()) {
+				if (hmi.getMode() == parkingRobot.INxtHmi.Mode.PARK_THIS && !control.getParkStatus()) 	// nur verfügbar wenn sich der Roboter nicht in einer Parklücke befindet
+				{
 					currentModus = CurrentModus.PARK_THIS;
 				}
 
-				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown()) {
+				else if (hmi.getMode() == parkingRobot.INxtHmi.Mode.DISCONNECT || Button.ESCAPE.isDown())
+				{
 					currentModus = CurrentModus.DISCONNECT;
-					while (Button.ESCAPE.isDown()) {
+					while (Button.ESCAPE.isDown())
+					{
 						Thread.sleep(1);
 					}
 				}
 
 				break;
 			/********************************************************************************************************************************************************/
-			case DISCONNECT:
+			case DISCONNECT:		// wenn Modus Disconnect
 
 				currentStatus = CurrentStatus.EXIT;
 				control.setCtrlMode(ControlMode.INACTIVE);
@@ -391,7 +413,7 @@ public class GuidanceAT {
 				 * // monitor.sendOfflineLog();
 				 */
 				monitor.stopLogging();
-				System.exit(0);
+				System.exit(0);				// Programm beenden
 
 				break;
 			/********************************************************************************************************************************************************/
@@ -414,13 +436,17 @@ public class GuidanceAT {
 	 * @return actual state of the main finite state machine
 	 */
 
-	public static CurrentStatus getCurrentStatus() {
+	public static CurrentStatus getCurrentStatus() 	// liefert aktuellen Status für HMI
+	{
 		return GuidanceAT.currentStatus;
 	}
 
-	private static float[] Pfadgenerator(float xs, float ys, float xz, float yz) {
-		float[] werte = new float[4];
 
+	private static float[] Pfadgenerator(float xs, float ys, float xz, float yz) // Pfadgenerator, liefert Koeffizienten zurück
+	{
+		float[] werte = new float[4];	// Koeffizientenarray
+
+										// zusätzliche Variablen:
 		float a, b, c, d;
 		float x1, x2, x3, x4, x5, x6, x7, x8, x9, x10;
 		float y1, y2;
@@ -454,99 +480,88 @@ public class GuidanceAT {
 		/**
 		 * y(x) = a*x³ + b*x² + c*x + d
 		 */
-
+						// Speichern zum Zurückliefern
 		werte[0] = d;
 		werte[1] = c;
 		werte[2] = b;
 		werte[3] = a;
+						// zweites Mal speichern für späteres Ausparken (Vereinfachung, hier nicht genutzt)
 
 		Koeffizienten[0] = werte[0];
 		Koeffizienten[1] = werte[1];
 		Koeffizienten[2] = werte[2];
 		Koeffizienten[3] = werte[3];
 
-		return werte;
+		return werte; // Koeffizienten zurückliefern
 	}
 
-	private static boolean pruefeAufLuecke(float x, float y, INavigation navigation, CurrentModus modus, INxtHmi hmi) // Roboterkoordinaten
-																														// werden
-																														// übergeben
-																														// (in
-																														// cm)
+	private static boolean pruefeAufLuecke(float x, float y, INavigation navigation, CurrentModus modus, INxtHmi hmi) // Roboterkoordinaten werden übergeben in m
 	{
 
-		boolean erg = false; // Initialisierung mit false: "keine passende
-								// Parklücke gefunden"
+		boolean erg = false; 	// Initialisierung mit false: "keine passende Parklücke gefunden"
 
-		float d = 0.10f; // 2*d = Abstandsintervall von Parklücke für Erkennung
-		float a = 0.15f; // Abstand von Parklückenrand (ca 5cm + halbe
-						// Roboterlänge)
-		float b = 0.25f; // Einparktiefe
-		float dAlpha = 5;
-		float winkel =  (float)(navigation.getPose().getHeading() / Math.PI * 180); // in °
-		while(winkel>=360){
+		float d = 0.10f; 		// 2*d = Abstandsintervall von Parklücke für Erkennung
+		float a = 0.15f; 		// Abstand von Parklückenrand (ca 5cm + halbe Roboterlänge)
+		float b = 0.25f; 		// Einparktiefe
+		float dAlpha = 5;		// Winkelgenauigkeit für Winkelbedingung
+		float winkel =  (float)(navigation.getPose().getHeading() / Math.PI * 180); // aktueller Winkel des Roboters in °
+		while(winkel >= 360)	// Winkel größer 360° zurücksetzen, damit Winkelbereich nur von 0° bis 360°
+		{
 			winkel-=360;
 		}
 
-		float xp_f, xp_b, yp_f, yp_b, lp_x, lp_y; // jeweilige Koordinaten bzw.
+		float xp_f, xp_b, yp_f, yp_b, lp_x, lp_y; 	// jeweilige Koordinaten bzw.
 													// Längen der Parklücken
 
-		if (navigation.getParkingSlots() != null) {
-			if (modus == CurrentModus.PARK_NOW)
-				for (int i = 0; i < navigation.getParkingSlots().length; i++) {
+		if (navigation.getParkingSlots() != null) 	// wenn Parklücken vorhanden
+		{
+			if (modus == CurrentModus.PARK_NOW) 	// im Park Now Modus alle Parklücken aus Array prüfen
+				for (int i = 0; i < navigation.getParkingSlots().length; i++) 	// alle vorhandenen Parklücken durchlaufen
+				{
 					ParkingSlot slot = navigation.getParkingSlots()[i];
-					if (slot.getStatus() == ParkingSlotStatus.GOOD) {
+					if (slot.getStatus() == ParkingSlotStatus.GOOD) 		// nur "gute" Parklücken überprüfen
+					{
 
-						xp_f = slot.getFrontBoundaryPosition().x;
-						xp_b = slot.getBackBoundaryPosition().x;
-						yp_f = slot.getFrontBoundaryPosition().y;
-						yp_b = slot.getBackBoundaryPosition().y;
+						xp_f = slot.getFrontBoundaryPosition().x;			// Front X position
+						xp_b = slot.getBackBoundaryPosition().x;			// Back  X position
+						yp_f = slot.getFrontBoundaryPosition().y;			// Front Y position
+						yp_b = slot.getBackBoundaryPosition().y;			// Back Y position
 
-						lp_x = xp_f - xp_b;
-						lp_y = yp_f - yp_b;
-						if (lp_x < 0)
+						lp_x = xp_f - xp_b;		// X Länge
+						lp_y = yp_f - yp_b;		// y Länge
+
+						if (lp_x < 0)			// nur positive Längen zulassen
 							lp_x *= -1;
-						if (lp_y < 0)
+						if (lp_y < 0)			// nur positive Längen zulassen
 							lp_y *= -1;
 
-						if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && ((winkel < dAlpha) || winkel > 360-dAlpha) && (winkel > -dAlpha)) // Roboter
-																				// und
-																				// Parklücke
-																				// auf
-																				// unterer
-																				// Linie
+						if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && ((winkel < dAlpha) || winkel > 360-dAlpha) && (winkel > -dAlpha)) // Roboter und Parklücke auf unterer Linie
 						{
-							if ((xp_b - x) < d && (xp_b - x) > -d) {
+							if ((xp_b - x) < d && (xp_b - x) > -d)		// wenn X Abstand im Intervall von +- d
+							{
 								erg = true;
-								line=0;
-								Startkoordinaten[0] =navigation.getPose().getX(); // wird für späteres Ausparken
-															// gesetzt
-								Startkoordinaten[1] = navigation.getPose().getY(); // wird für späteres Ausparken
-															// gesetzt
+								line=0;												//Roboter auf erster Linie
+								Startkoordinaten[0] = navigation.getPose().getX(); 	// wird für späteres Ausparken gesetzt
+								Startkoordinaten[1] = navigation.getPose().getY(); 	// wird für späteres Ausparken gesetzt
 								Zielkoordinaten[0] = xp_b + lp_x - a;
 								Zielkoordinaten[1] = y - b;
 							}
 						}
 
-						if (y > 0.15 && x < 1.60 && yp_f > 0.15 && xp_b < 1.60 && winkel < 180+dAlpha && winkel > 180-dAlpha) // Roboter
-																				// und
-																				// Parklücke
-																				// auf
-																				// oberer
-																				// Linie
+						if (y > 0.15 && x < 1.60 && yp_f > 0.15 && xp_b < 1.60 && winkel < 180+dAlpha && winkel > 180-dAlpha) // Roboter und Parklücke auf oberer Linie
 						{
-							if ((x - xp_b) < d && (x - xp_b) > -d) {
+							if ((x - xp_b) < d && (x - xp_b) > -d)
+							{
 								erg = true;
 								line=4;
-								Startkoordinaten[0] =navigation.getPose().getX();
+								Startkoordinaten[0] = navigation.getPose().getX();
 								Startkoordinaten[1] = navigation.getPose().getY();
 								Zielkoordinaten[0] = xp_b - lp_x + a;
 								Zielkoordinaten[1] = y + b;
 							}
 						}
 
-						if (x > 1.60 && xp_f > 1.60) // Roboter und Parklücke
-														// auf rechter Linie
+						if (x > 1.60 && xp_f > 1.60) // Roboter und Parklücke auf rechter Linie
 						{
 							if ((yp_b - y) < d && (yp_b - y) > -d && winkel < 90+dAlpha && winkel > 90-dAlpha)
                             {
@@ -561,7 +576,8 @@ public class GuidanceAT {
 					}
 				}
 
-			if (modus == CurrentModus.PARK_THIS) {
+			if (modus == CurrentModus.PARK_THIS)		// im Park This Modus nur eine Parklücke prüfen (vorgegebene)
+			{
 				ParkingSlot slot = navigation.getParkingSlots()[hmi.getSelectedParkingSlot()];
 
 				xp_f = slot.getFrontBoundaryPosition().x;
@@ -576,14 +592,10 @@ public class GuidanceAT {
 				if (lp_y < 0)
 					lp_y *= -1;
 
-				if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && ((winkel < dAlpha) || winkel > 360-dAlpha) && (winkel > -dAlpha)) // Roboter
-																		// und
-																		// Parklücke
-																		// auf
-																		// unterer
-																		// Linie
+				if (y < 0.15 && x < 1.60 && yp_f < 0.15 && xp_b < 1.60 && ((winkel < dAlpha) || winkel > 360-dAlpha) && (winkel > -dAlpha)) // Roboter und Parklücke auf unterer Linie
 				{
-					if ((xp_b - x) < d && (xp_b - x) > -d) {
+					if ((xp_b - x) < d && (xp_b - x) > -d)
+					{
 						erg = true;
 						line=0;
 						Startkoordinaten[0] =navigation.getPose().getX();
@@ -593,14 +605,10 @@ public class GuidanceAT {
 					}
 				}
 
-				if (y > 0.15 && x < 1.60 && yp_f > 0.15 && xp_b < 1.60 && winkel < 180+dAlpha && winkel > 180-dAlpha) // Roboter
-																		// und
-																		// Parklücke
-																		// auf
-																		// oberer
-																		// Linie
+				if (y > 0.15 && x < 1.60 && yp_f > 0.15 && xp_b < 1.60 && winkel < 180+dAlpha && winkel > 180-dAlpha) // Roboter und Parklücke auf oberer Linie
 				{
-					if ((x - xp_b) < d && (x - xp_b) > -d) {
+					if ((x - xp_b) < d && (x - xp_b) > -d)
+					{
 						erg = true;
 						line=4;
 						Startkoordinaten[0] =navigation.getPose().getX();
@@ -610,10 +618,10 @@ public class GuidanceAT {
 					}
 				}
 
-				if (x > 1.60 && xp_f > 1.60 && winkel < 90+dAlpha && winkel > 90-dAlpha) // Roboter und Parklücke auf
-												// rechter Linie
+				if (x > 1.60 && xp_f > 1.60 && winkel < 90+dAlpha && winkel > 90-dAlpha) // Roboter und Parklücke auf rechter Linie
 				{
-					if ((yp_b - y) < d && (yp_b - y) > -d) {
+					if ((yp_b - y) < d && (yp_b - y) > -d)
+					{
 						erg = true;
 						line=1;
 						Startkoordinaten[0] =navigation.getPose().getY();
@@ -638,7 +646,8 @@ public class GuidanceAT {
 	 *            reference to the navigation class for getting pose information
 	 */
 
-	protected static void showData(INavigation navigation, IPerception perception) {
+	protected static void showData(INavigation navigation, IPerception perception)  // LCD Display zeichnen
+	{
 		LCD.clear();
 
 		LCD.drawString("X (in cm): " + (navigation.getPose().getX() * 100), 0, 0);

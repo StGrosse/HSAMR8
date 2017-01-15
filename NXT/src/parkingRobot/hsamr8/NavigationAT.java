@@ -105,7 +105,7 @@ public class NavigationAT implements INavigation{
 	 */
 	static final double WHEEL_DISTANCE		= 	0.119; // only rough guess, to be measured exactly and maybe refined by experiments
 
-	
+	static final double encoderError=0.025;
 	/**
 	 * map array of line references, whose corresponding lines form a closed chain and represent the map of the robot course
 	 */
@@ -126,6 +126,15 @@ public class NavigationAT implements INavigation{
 	 * pose class containing bundled current X and Y location and corresponding heading angle phi
 	 */
 	Pose pose								= new Pose();
+	/**
+	 * distance from frontsidesensor to Roboter
+	 */
+	double parkenGutLength = 0.045;
+
+	/**
+	 * distance from backsidesensor to Roboter
+	 */
+	double parkenGutLength2 = 0.08;
     
 	//Pose lastPose[]=new Pose[5];
 	/**
@@ -137,59 +146,74 @@ public class NavigationAT implements INavigation{
 	 */
 	NavigationThread navThread = new NavigationThread(this);
 
+	/**
+	 * In line 4 error must be remove
+	 */
+
+	//double errorX=0.05;
+
 	
 	
-	//Line ReferenceLine;
-	double errorX=0.08;
-	//float currentAngle;
-	int currentLine;
 	
-	/*
+	
+	/**
 	 * parkinSlotsuchen parameter
 	 */
+	/**
+	 * which line the robot is on
+	 */
+	int currentLine;
+	/**
+	 * initialize the Array so the Pad could see the parkingSlot 
+	 */
 	INavigation.ParkingSlot ParkingSlot = null;
-	INavigation.ParkingSlot parkingSlots[]=new ParkingSlot[20];
 	INavigation.ParkingSlot Slots[] = null;
-	INavigation.ParkingSlot Slots1[] = null;
-	INavigation.ParkingSlot currentParkingSlot= new ParkingSlot(0,null,null,null,0);
-	int parken_ID=0; //parkenSlotnumber
-	int parkenSlot_ID=0;
 	ArrayList<ParkingSlot> slotList = new ArrayList<ParkingSlot>();
-	ArrayList<ParkingSlot> slotList1 = new ArrayList<ParkingSlot>();
-	boolean detectionStatus=false;
+	/**
+	 * every parkingSlot have a ID
+	 */
+	int parken_ID=0; 
+	int parkenSlot_ID=0;
+	
+	/**
+	 * a signal the back boundary has already been found or not
+	 */
 	boolean parkingSuchen=false;
+	/**
+	 *  initialize the backBoundry position and the frontBoundry position
+	 */
 	Point backBoundaryPosition = null;
 	Point frontBoundaryPosition = null;
+	/**
+	 * die measurementQuality with the robot
+	 */
 	int measurementQuality;
-
+    /**
+     * status with parkingSlot in line0, line1 and line4
+     */
 	boolean parkenSlotSuch0 = false;
 	boolean parkenSlotSuch1 = false;
 	boolean parkenSlotSuch4 = false;
-	
+	/**
+	 * signal whether parkingSlot have been found or not
+	 */
 	boolean signal=false;
 	
-	/*
-	 * distance from Frontsidesensor to Roboter
-	 */
-	double parkenGutLength = 0.045;
-
-	/*
-	 * distance from Backsidesensor to Roboter
-	 */
-	double parkenGutLength2 = 0.08;
+	
 	double frontparkPosition = 0;
 	double backparkPosition = 0;
-	double parkingSlotLength=0;
-	
-	int counter=0;
-	int round=0;
-	int new_ParkenID=0;
-	/*
-	 * the parameter SameSlotDifference 25 mm
+	/**
+	 *  parkingSlot's length
 	 */
-	//static final int maxDis=10;
-	private static final double SameSlotDifference =0.05;
-	//float lineWinkel=0;
+	double parkingSlotLength=0;
+	/**
+	 * die circle the Robot already run
+	 */
+	int round=0;
+	/**
+	 * the parameter SameSlotDifference 8 cm
+	 */
+	private static final double SameSlotDifference =0.08;
 	/**
 	 * returns the map
 	 */
@@ -197,7 +221,6 @@ public class NavigationAT implements INavigation{
 		return map;
 	}
 	
-	// ParkingSlot[] parkingSlotList=new ParkingSlot[20]; 
 	
 	
 	
@@ -253,11 +276,13 @@ public class NavigationAT implements INavigation{
 	 */
 	public synchronized void updateNavigation(){	
 		this.updateSensors();
+		
 		this.calculateLocationLocation();
 		// Detection->close
 		monitor.writeNavigationVar("X_wert", "" +  this.getPose().getX());
 		monitor.writeNavigationVar("Y_wert", "" +  this.getPose().getY());
 		monitor.writeNavigationVar("Alpha_wert", "" +  this.getPose().getHeading());
+		
 		if (this.parkingSlotDetectionIsOn) 
 			try{
 				this.detectParkingSlot();
@@ -282,13 +307,7 @@ public class NavigationAT implements INavigation{
 	 * @see parkingRobot.INavigation#getParkingSlots()
 	 */
 	public synchronized ParkingSlot[] getParkingSlots() {
-		/*
-		if(counter>=0){
-			ParkingSlot actuallSlots[]=new ParkingSlot[counter];
-			System.arraycopy(Slots, 0, actuallSlots, 0, counter);
-			return actuallSlots;
-		}
-		*/
+
 		return Slots;
 		
 	}
@@ -340,9 +359,6 @@ public class NavigationAT implements INavigation{
 		
 		double deltaT       = ((double)this.angleMeasurementLeft.getDeltaT())/1000;
 		
-	    //detectline();         //make sure the robot on line
-		//ReferenceLine=whichLine(pose,maxDis);//know which line the robot is on
-		//detectCorner();       // Corner or not 
 		
 		if (R.isNaN()) { //robot don't move
 			xResult			= this.pose.getX();
@@ -367,6 +383,8 @@ public class NavigationAT implements INavigation{
 				round++;
 			}
 		}
+     //	errorX=Math.abs(this.getPose().getX()-xResult)*encoderError;
+	//	errorY=Math.abs(this.getPose().getX()-xResult)*encoderError;
 		//line0
 		if((this.pose.getHeading() < Math.PI * 0.10)&& (this.pose.getHeading() >- Math.PI * 0.10)){
 		         currentLine=0;
@@ -377,7 +395,7 @@ public class NavigationAT implements INavigation{
 		if(currentLine==0){
 			monitor.writeNavigationComment("enter loopline0");
 			if (parkingSlotDetectionIsOn) {
-			if ((this.pose.getX() >0.03)&& (this.pose.getX()<1.65)) {
+			if ((this.pose.getX() >0.03)&& (this.pose.getX()<1.70)) {
 				if ((this.pose.getHeading() > Math.PI * 0.01)|| (this.pose.getHeading() < -Math.PI * 0.01))
 				{
 					angleResult = 0;
@@ -388,6 +406,7 @@ public class NavigationAT implements INavigation{
 				if (this.pose.getY() > 0.01) {
 					yResult = 0;
 				}
+				
 		      }     
 			currentLine=0;
 		}
@@ -397,7 +416,7 @@ public class NavigationAT implements INavigation{
 		//Line=1
 		if ((this.pose.getHeading() >Math.PI * 0.44) && (this.pose.getHeading() < Math.PI * 0.55)&& (currentLine == 0)) {
 			monitor.writeNavigationComment("enter line1");
-			xResult=1.78;
+			xResult=1.80;
 			angleResult=0.5*Math.PI;
             currentLine=1;
           
@@ -408,17 +427,17 @@ public class NavigationAT implements INavigation{
             monitor.writeNavigationComment("enterloop1");
 			currentLine=1;
 			   //Einpaken
-	        		if (parkingSlotDetectionIsOn) {
+	        if (parkingSlotDetectionIsOn) {
 				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.55)) {
 					if ((this.pose.getHeading() < Math.PI * 0.49) || (this.pose.getHeading() >Math.PI * 0.51)) {
 						angleResult =0.5*Math.PI;
 					}
-					if (this.pose.getX() >1.79) {
-						xResult = 1.78;
+					if (this.pose.getX() >1.81) {
+						xResult = 1.80;
 					}
-					if (this.pose.getX() <1.77) {
-						xResult = 1.78;
-						 monitor.writeNavigationComment("enterloop1.1.78");
+					if (this.pose.getX() <1.79) {
+						xResult = 1.80;
+						 monitor.writeNavigationComment("enterloop1.1.80");
 
 					}
 					
@@ -445,7 +464,7 @@ public class NavigationAT implements INavigation{
 
 		   //if (parkingSlotDetectionIsOn) {
 
-				    monitor.writeNavigationComment("enter loopline2est");
+				    monitor.writeNavigationComment("enter loopline2");
 			      if ((this.pose.getX() < 1.78) && (this.pose.getX() >1.55)) {
 					if ((this.pose.getHeading()<Math.PI * 0.99) || (this.pose.getHeading() >Math.PI * 1.01)) {
 						angleResult = Math.PI;
@@ -539,8 +558,9 @@ public class NavigationAT implements INavigation{
 			monitor.writeNavigationComment("enter loopline4");
               currentLine=4;
 		   	if (parkingSlotDetectionIsOn) {
-				//yResult=0.3;
+				
 				if ((this.pose.getX() <1.65) && (this.pose.getX() >0.45)) {
+			
 					if ((this.pose.getHeading() < Math.PI * 0.99)|| (this.pose.getHeading()> Math.PI * 1.01)) {
 						    angleResult = Math.PI;
 					}   
@@ -757,84 +777,77 @@ public class NavigationAT implements INavigation{
 	private void detectParkingSlot(){
 		
 		switch (currentLine) {
-		case 0:
-			if (this.pose.getX() <1.75) {
-				//parkluecke0 und 1
-				monitor.writeNavigationComment("parkenLine0");
-			   if ((parkenSlotSuch0 == false) && (this.frontSideSensorDistance >280)) {
-					backBoundaryPosition = new Point((float) (this.pose.getX()), this.pose.getY());
-					monitor.writeNavigationComment("back");
-						parkenSlotSuch0 = true;
-						Sound.beep();
+			case 0:
+				if (this.pose.getX() <1.75) {
+					//parkluecke0 und 1
+					monitor.writeNavigationComment("parkenLine0");
+				   if ((parkenSlotSuch0 == false) && (this.frontSideSensorDistance >280)) {
+						backBoundaryPosition = new Point((float) (this.pose.getX()), this.pose.getY());
+						monitor.writeNavigationComment("back");
+							parkenSlotSuch0 = true;
+							Sound.beep();
 
+					}
+					if ((parkenSlotSuch0 == true) && (this.frontSideSensorDistance <170)) {
+						frontBoundaryPosition =new Point((float) (this.pose.getX()-parkenGutLength), this.pose.getY());
+						parkenSlotSuch0 = false;
+						signal = true;
+                        monitor.writeNavigationComment("front");
+                        Sound.beep();
+					}
 				}
-				if ((parkenSlotSuch0 == true) && (this.frontSideSensorDistance <170)) {
-					frontBoundaryPosition =new Point((float) (this.pose.getX()-parkenGutLength2), this.pose.getY());
-					parkenSlotSuch0 = false;
-					signal = true;
-                    monitor.writeNavigationComment("front");
-                    Sound.beep();
+				break;
+			case 1:
+				if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.6)) {
+					monitor.writeNavigationComment("parkenLine1");
+					if ((parkenSlotSuch1 == false) && (this.frontSideSensorDistance > 320)) {
+						backBoundaryPosition = new Point(this.pose.getX(), (float) (this.pose.getY() ));
+						monitor.writeNavigationComment("back_Line1");
+						parkenSlotSuch1 = true;
+						Sound.beep();
+						
 				}
-			}
-			break;
-		case 1:
-			if ((this.pose.getY() > 0.05) && (this.pose.getY() < 0.65)) {
-				monitor.writeNavigationComment("parkenLine1");
-				if ((parkenSlotSuch1 == false) && (this.frontSideSensorDistance > 320)) {
-					backBoundaryPosition = new Point(this.pose.getX(), (float) (this.pose.getY() ));
-					monitor.writeNavigationComment("back_Line1");
-					parkenSlotSuch1 = true;
-					Sound.beep();
-					
-			}
-				if ((parkenSlotSuch1 == true) && (this.frontSideSensorDistance < 200)) {
-					frontBoundaryPosition = new Point(this.pose.getX(),(float) (this.pose.getY()+parkenGutLength));
-					//frontBoundaryPosition = new Point(this.pose.getX(),this.pose.getY());
-					monitor.writeNavigationComment("front_Line1");
-					parkenSlotSuch1 = false;
-					signal = true;
-					Sound.beep();
+					if ((parkenSlotSuch1 == true) && (this.frontSideSensorDistance < 200)) {
+						frontBoundaryPosition = new Point(this.pose.getX(),(float) (this.pose.getY()+parkenGutLength));
+						//frontBoundaryPosition = new Point(this.pose.getX(),this.pose.getY());
+						monitor.writeNavigationComment("front_Line1");
+						parkenSlotSuch1 = false;
+						signal = true;
+						Sound.beep();
+					}
 				}
-			}
-			break;
-		
-		case 4:
-			if ((this.pose.getX() <1.3) && (this.pose.getX() >0.4)) {
-				monitor.writeNavigationComment("parkenLine4");
-				if ((parkenSlotSuch4 == false) && (this.backSideSensorDistance > 380)) {
-					monitor.writeNavigationComment("back_Line4");
-					backBoundaryPosition = new Point((float) (this.pose.getX()+parkenGutLength2+errorX), this.pose.getY());
-					//backBoundaryPosition = new Point(this.pose.getX() , this.pose.getY());
-					//parkenSlotSuch4 = true;
-					parkenSlotSuch4 = true;
-					Sound.beep();
-		
-			}
-				if ((parkenSlotSuch4 == true) && (this.backSideSensorDistance < 120)) {
-					monitor.writeNavigationComment("front_Line4");
-					frontBoundaryPosition =new Point((float) (this.pose.getX()+parkenGutLength2), this.pose.getY());
-					parkenSlotSuch4= false;
-					signal = true;
-					Sound.beep();
+				break;
+			
+			case 4:
+				if ((this.pose.getX() <1.2) && (this.pose.getX() >0.4)) {
+					monitor.writeNavigationComment("parkenLine4");
+					if ((parkenSlotSuch4 == false) && (this.backSideSensorDistance > 380)) {
+						monitor.writeNavigationComment("back_Line4");
+						backBoundaryPosition = new Point((float) (this.pose.getX()+parkenGutLength2), this.pose.getY());
+						//backBoundaryPosition = new Point(this.pose.getX() , this.pose.getY());
+						//parkenSlotSuch4 = true;
+						parkenSlotSuch4 = true;
+						Sound.beep();
+			
 				}
+					if ((parkenSlotSuch4 == true) && (this.backSideSensorDistance < 120)) {
+						monitor.writeNavigationComment("front_Line4");
+						frontBoundaryPosition =new Point((float) (this.pose.getX()+parkenGutLength2), this.pose.getY());
+						parkenSlotSuch4= false;
+						signal = true;
+						Sound.beep();
+					}
+				}
+				break;
 			}
-			break;
-		}
 
 			if (signal == true) {
 				if ((this.frontBoundaryPosition != null) && (this.backBoundaryPosition != null)) {
 					frontparkPosition = Math.abs(this.frontBoundaryPosition.getX()) + Math.abs(this.frontBoundaryPosition.getY());
 					backparkPosition = Math.abs(this.backBoundaryPosition.getX()) + Math.abs(this.backBoundaryPosition.getY());
-					//frontparkPosition = Math.abs(this.frontBoundaryPosition.getX());
-					//backparkPosition = Math.abs(this.backBoundaryPosition.getX());
 					parkingSlotLength = Math.abs(frontparkPosition - backparkPosition);
 					parken_ID++;
-					/*
-					if(parken_ID>=4&&currentLine==0){
-						parken_ID=1;
-						new_ParkenID=0;
-					}
-					*/
+					
 					//set measurementquality
 					measurementQuality=qualitySlot(parkingSlotLength,parken_ID-1);
 					monitor.writeNavigationComment("line1");
@@ -845,17 +858,7 @@ public class NavigationAT implements INavigation{
 				    parkenSlot_ID = parken_ID-1;
 				    ParkingSlot getParkingSlots = new ParkingSlot(parkenSlot_ID, backBoundaryPosition,
 							frontBoundaryPosition,status, measurementQuality);
-				  
-				
-		            this.monitor.writeNavigationComment("X_BACK "+getParkingSlots.getBackBoundaryPosition().x);
-					this.monitor.writeNavigationComment("Y_BACK "+getParkingSlots.getBackBoundaryPosition().y);
-				    this.monitor.writeNavigationComment("X_FRONT "+getParkingSlots.getFrontBoundaryPosition().x);
-				    this.monitor.writeNavigationComment("Y_FRONT "+getParkingSlots.getFrontBoundaryPosition().y);
-				    this.monitor.writeNavigationComment("Parken_ID "+getParkingSlots.getID());
-				    this.monitor.writeNavigationComment("STATUS "+getParkingSlots.getStatus());
-				    this.monitor.writeNavigationComment("measurementquality"+getParkingSlots.getMeasurementQuality());
-				    this.monitor.writeNavigationComment( "grose des Arrays:"+slotList.size());
-		           Sound.beep();
+		          // Sound.beep();
 				 //Aktualisierung der Parkluecken 
 				  
 				 if(round==0){
@@ -872,32 +875,31 @@ public class NavigationAT implements INavigation{
 				 
 				    		try{
 				    		if(sameSlot(Slots[i],getParkingSlots)){
-				    			Sound.beep();
-				    			//LCD.drawString("for-Schleife", 0, 6);
-				    			this.monitor.writeNavigationComment("sameslot");
-				    			if(langeSlot(parkingSlotLength,Slots[i])){	  
-				    				this.monitor.writeNavigationComment("langSlot");
-				    				slotList.set(i, getParkingSlots);
-				    				slotList.add(getParkingSlots);  
-				    				Slots = new ParkingSlot[slotList.size()];
-				    				Slots = slotList.toArray(Slots);
-				    				break;
-								 
-				    			}
-				    			else{
-				    				getParkingSlots=Slots[i];
-				    				slotList.add(getParkingSlots);
-				    				Slots = new ParkingSlot[slotList.size()];
-				    				Slots = slotList.toArray(Slots);  //create a new array
-				    				break;
-				    				
-				    			}
+				    			   if(Slots[i].getStatus()==ParkingSlotStatus.GOOD){
+				    				   Point newBackBoundry=new Point((float)(Slots[i].getBackBoundaryPosition().getX()+getParkingSlots.getBackBoundaryPosition().getX())/2);
+									   Point newFrontBoundry=new Point((float)(Slots[i].getFrontBoundaryPosition().getX()+getParkingSlots.getFrontBoundaryPosition().getX())/2);
+									   getParkingSlots.setBackBoundaryPosition(newBackBoundry);
+									   getParkingSlots.setFrontBoundaryPosition(newFrontBoundry);
+									   slotList.set(i, getParkingSlots);
+									   slotList.add(getParkingSlots);
+								       Slots = new ParkingSlot[slotList.size()];
+								       Slots = slotList.toArray(Slots);
+								       break;
+								      
+				    			   }else{
+				    				   slotList.set(i, getParkingSlots); 
+				    				   slotList.add(getParkingSlots);
+								       Slots = new ParkingSlot[slotList.size()];
+								       Slots = slotList.toArray(Slots);
+								       break;
+				    			   }
+				    			
 				    		}
 				    		else{
 				    			slotList.add(getParkingSlots);
-				    			Slots = new ParkingSlot[slotList.size()];
-				    			Slots = slotList.toArray(Slots);  //create a new array 
-				    			break;
+				    	  		Slots = new ParkingSlot[slotList.size()];
+				    	   		Slots = slotList.toArray(Slots);  //create a new array 
+				    	   		break;
 				    		}
 				    		}catch(NullPointerException d){
 				    			LCD.drawString("nullpointer for", 0, 5);
@@ -917,30 +919,10 @@ public class NavigationAT implements INavigation{
 							frontBoundaryPosition,status, measurementQuality);
 					 if(round==0){
 						  slotList.add(getParkingSlots);
-				            Slots = new ParkingSlot[slotList.size()];
-				            Slots = slotList.toArray(Slots);  //create a new array
+				          Slots = new ParkingSlot[slotList.size()];
+				          Slots = slotList.toArray(Slots);  //create a new array
 					  }
-					 if(round>=1){
-                           
-					    	for(int i=0; i<Slots.length-1;i++){
-					    		if(i==20)break;
-					    	  if(sameSlot(Slots[i],getParkingSlots)){
-					    		 // Sound.twoBeeps();
-					    		  if(Slots[i].getStatus()==ParkingSlotStatus.GOOD){
-					    			  getParkingSlots=Slots[i];
-					    			  slotList.add(getParkingSlots);
-							          Slots = new ParkingSlot[slotList.size()];
-							          Slots = slotList.toArray(Slots);
-							          break;
-					    		  }else{
-					    			  slotList.set(i, getParkingSlots);
-									   Slots = slotList.toArray(Slots);
-									   break;
-					    		  }
-					    	   }
-					         }
-					    }
-					 
+					
 						}
 			
 				signal = false;
