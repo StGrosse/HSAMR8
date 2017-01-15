@@ -254,11 +254,12 @@ public class ControlRST implements IControl {
 
 		monitor.addControlVar("wZielR");
 		float akku=Battery.getVoltage();
-		if(akku<=7.3){
+		//monitor.writeControlComment("akku");
+		/*if(akku<=7.5){
 			this.angVelPerPercent=16.0f;
-			this.offsetAngVelPerPercent=-155.5f;
+			this.offsetAngVelPerPercent=-153.04f;
 		}
-		else if(akku>7.3 && akku<=7.6){
+		else if(akku>7.5 && akku<=7.6){
 			this.angVelPerPercent=16.5f;
 			this.offsetAngVelPerPercent=-154.7f;
 		}
@@ -266,11 +267,11 @@ public class ControlRST implements IControl {
 			this.angVelPerPercent=16.9f;
 			this.offsetAngVelPerPercent=-156.5f;
 		}
-		else if(akku>7.7 && akku<=8.3){
+		else if(akku>7.7 && akku<=8.3){*/
 			this.angVelPerPercent=18.2f;
 			this.offsetAngVelPerPercent=-167.4f;
 			
-		}
+		//}
 		
 
 		this.ctrlThread = new ControlThread(this);
@@ -482,10 +483,10 @@ public class ControlRST implements IControl {
 		rightMotor.forward();
 		float kp_l = 0.031f;
 		float ki_l = 0.00120f;// bei TA=100: 0.00120
-		float kd_l = 0.016f;// bei TA=100: 0.082
+		float kd_l = 0.015f;// bei TA=100: 0.082
 		float kp_r = 0.031f;
 		float ki_r = 0.00120f;
-		float kd_r = 0.015f;// bei TA=100: 0.084
+		float kd_r = 0.016f;// bei TA=100: 0.084
 
 		double[] speed = this.drive(this.velocity, this.angularVelocity); // berechne
 																			// ben鰐igte
@@ -496,29 +497,30 @@ public class ControlRST implements IControl {
 		// Steuerung der Motoren (ohne Regelung) auf Basis von experimentell
 		// bestimmter Proportionalit鋞skonstante
 		if (this.newVW) {
+			//monitor.writeControlComment("speed: "+speed[1]);
 			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) || (curve!=dest.no)) {
 			
 				if (speed[0] > 0) {
-					steuerL = (int) ((Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
+					steuerL = (int) ((2*Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
 					// w_wheel=angVelPerPercent*power+offsetAngVelPerPercent
 				} else if (speed[0] < 0) {
-					steuerL = -(int) ((Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
+					steuerL = -(int) ((2*Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
 
 				}
 				if (speed[1] > 0) {
-					steuerR = (int) ((Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
+					steuerR = (int) ((2*Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
 				} else if (speed[1] < 0) {
-					steuerR = -(int) ((Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
+					steuerR = -(int) ((2*Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
 				}
-
+				monitor.writeControlComment("Anstieg: "+angVelPerPercent);
 			}
 			// this.monitor.writeControlComment("links:
 			// "+(int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL)+"
 			// rechts:
 			// "+(int)(Math.signum(speed[1])*(Math.abs(speed[1])-offsetAngVelPerPercentR)/angVelPerPercentR));
 			else {
-				steuerL = 10;
-				steuerR = 10;
+				steuerL = 9;
+				steuerR = 9;
 			}
 
 			u_old_l = steuerL;
@@ -539,16 +541,16 @@ public class ControlRST implements IControl {
 		double e_l = speed[0] - w_akt_l;// Fehler links in Grad/sec
 		double e_r = speed[1] - w_akt_r;// Fehler rechts in Grad/sec
 
-		double u_l = u_old_l;
-		double u_r = u_old_r;
-		//if (this.currentCTRLMODE == ControlMode.LINE_CTRL || !this.newVW) {
+		double pw_l = u_old_l;
+		double pw_r = u_old_r;
+		if (this.currentCTRLMODE == ControlMode.LINE_CTRL || !this.newVW) {
 			esuml_vw += e_l;
 			esumr_vw += e_r;
 			// if(e_l<5)esuml_vw=0;
 			// if(e_r<5)esumr_vw=0;
 			// Berechnung der Stellgr鲞en (Pulsweite)
-			u_l = kp_l * e_l + ki_l * this.esuml_vw + kd_l * (e_l - this.eoldl_vw);
-			u_r = kp_r * e_r + ki_r * this.esumr_vw + kd_r * (e_r - this.eoldr_vw);
+			double u_l = kp_l * e_l + ki_l * this.esuml_vw + kd_l * (e_l - this.eoldl_vw);
+			double u_r = kp_r * e_r + ki_r * this.esumr_vw + kd_r * (e_r - this.eoldr_vw);
 
 			// fehler.add(0, e_r);
 			// geschw.add(0,w_akt_r);
@@ -563,9 +565,10 @@ public class ControlRST implements IControl {
 
 			this.eoldl_vw = e_l;
 			this.eoldr_vw = e_r;
-		//}
-		double pw_l = Math.abs(u_old_l + u_l) > 100 ? 100 : u_old_l + u_l;
-		double pw_r = Math.abs(u_old_r + u_r) > 100 ? 100 : u_old_r + u_r;
+			pw_l = Math.abs(u_old_l + u_l) > 100 ? 100 : u_old_l + u_l;
+			pw_r = Math.abs(u_old_r + u_r) > 100 ? 100 : u_old_r + u_r;
+		}
+		
 		u_old_l = (int) pw_l;
 		u_old_r = (int) pw_r;
 		// Ausschriften Dimensionierung links
@@ -586,6 +589,7 @@ public class ControlRST implements IControl {
 		leftMotor.setPower((int) pw_l);
 		rightMotor.setPower((int) pw_r);
 		this.newVW = false;
+//		this.currentCTRLMODE=ControlMode.LINE_CTRL;
 
 	}
 
@@ -882,9 +886,8 @@ public class ControlRST implements IControl {
 		else if (option == 3) {
 			this.setAngularVelocity(0.0); // winkelgeschwindigkeit in
 													// 1/s
-			this.setVelocity(0.10); // Geschwindigkeit in m/s
+			this.setVelocity(0.1); // Geschwindigkeit in m/s
 			this.innerLoop();
-			// exec_VWCTRL_ALGO();
 		} else if (option == 4) {
 			this.calcAngVelPerPercent();
 		} else if (option == 5) {
@@ -970,7 +973,7 @@ public class ControlRST implements IControl {
 				this.exec_SETPOSE_ALGO();
 			} else if (phase == 1 && ParkStatus) {
 				this.stop();
-				// this.resetVW();
+				//this.resetVW();
 				this.currentCTRLMODE = ControlMode.PARK_CTRL;
 				phase = 2;
 				ParkStatus = false;
@@ -982,6 +985,7 @@ public class ControlRST implements IControl {
 
 			}
 			if (phase == 2 && !ParkStatus) {
+				this.currentCTRLMODE=ControlMode.PARK_CTRL;
 				monitor.writeControlComment("Start Phase2");
 				this.update_PARKCTRL_Parameter();
 				this.exec_PARKCTRL_ALGO();
@@ -998,6 +1002,7 @@ public class ControlRST implements IControl {
 			}
 
 			if (phase == 3 && !ParkStatus) {
+				this.currentCTRLMODE=ControlMode.PARK_CTRL;
 				monitor.writeControlComment("Start Phase3");
 				this.update_PARKCTRL_Parameter();
 				this.exec_PARKCTRL_ALGO();
@@ -1214,7 +1219,7 @@ public class ControlRST implements IControl {
 																						// der
 																						// Genauigkeit
 		if (av_encoderSum < 190 && straight) { // Fahrt zum Kurvenscheitel,
-												// 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360�
+												// 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360
 			this.setAngularVelocity(0.0);
 			this.setVelocity(0.1);
 			this.innerLoop();
