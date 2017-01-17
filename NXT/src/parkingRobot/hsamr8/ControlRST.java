@@ -51,7 +51,7 @@ public class ControlRST implements IControl {
 	// static final int akku_max = 0; //maximum voltage of akku in mV
 
 	// parameter for exec_LINECTRL_ALGO_opt2
-	static final float kp_slow = 0.0006f; // Proportionalbeiwert PID 0.0005
+	static final float kp_slow = 0.005f; // Proportionalbeiwert PID 0.0005
 											// Linefollower 
 											// absolut:
 	static final float kp_fast = 0.00007f;
@@ -59,7 +59,7 @@ public class ControlRST implements IControl {
 	// absolut:0.0082, neu:0.000
 	static final float kd_fast = 0.025f; // Differenzierbeiwert PID Linefollower
 											// absolut:0.095, neu.0.02
-	static final float kd_slow = 0.033f;// 0.028
+	static final float kd_slow = 0.025f;// 0.028 0.033
 	static final float V_FAST = 0.2f;
 	static final float V_SLOW = 0.15f;
 
@@ -267,7 +267,7 @@ public class ControlRST implements IControl {
 			this.angVelPerPercent=16.9f;
 			this.offsetAngVelPerPercent=-156.5f;
 		}
-		else if(akku>7.7 && akku<=8.3){
+		else if(akku>7.7 /*&& akku<=8.3*/){
 			this.angVelPerPercent=18.2f;
 			this.offsetAngVelPerPercent=-167.4f;
 			
@@ -498,7 +498,7 @@ public class ControlRST implements IControl {
 		// bestimmter Proportionalitätskonstante
 		if (this.newVW) {
 			//monitor.writeControlComment("speed: "+speed[1]);
-			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) || (curve!=dest.no)) {
+			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) /*|| (curve!=dest.no)*/) {
 			
 				if (speed[0] > 0) {
 					steuerL = (int) ((2*Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
@@ -775,8 +775,8 @@ public class ControlRST implements IControl {
 				0, 4);
 		LCD.drawString(Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
 				+ Math.round(this.currentPosition.getHeading()*100)/100.0f, 0, 5);
-		/*LCD.drawString(""+this.currentSlot, 0, 2);
-		LCD.drawString(""+T, 0, 3);*/
+		LCD.drawString(""+this.currentSlot, 0, 7);
+		LCD.drawString(""+T, 0, 3);
 		LCD.drawString(""+path[0], 0, 0);
 		LCD.drawString(""+path[1], 0, 1);
 		LCD.drawString(""+path[2], 0, 2);
@@ -1114,9 +1114,9 @@ public class ControlRST implements IControl {
 			kp = kp_fast;
 
 		} else {
-			this.setVelocity(V_SLOW);
-			kd = kd_slow;
-			kp = kp_slow;
+			this.setVelocity(V_FAST);
+			kd = kd_fast;
+			kp = kp_fast;
 		}
 		int e = this.lineSensorLeft - this.lineSensorRight; // Berechne Fehler
 															// aus Differenz der
