@@ -52,17 +52,17 @@ public class ControlRST implements IControl {
 	// static final int akku_max = 0; //maximum voltage of akku in mV
 
 	// parameter for exec_LINECTRL_ALGO_opt2
-	static final float kp_slow = 0.0006f; // Proportionalbeiwert PID 0.0005
-											// Linefollower 
-											// absolut:
-	static final float kp_fast = 0.00007f;
-	// static final double ki = 0.000; //Integrierbeiwert PID Linefollower
-	// absolut:0.0082, neu:0.000
-	static final float kd_fast = 0.025f; // Differenzierbeiwert PID Linefollower
-											// absolut:0.095, neu.0.02
-	static final float kd_slow = 0.033f;// 0.028
-	static final float V_FAST = 0.2f;
-	static final float V_SLOW = 0.15f;
+	float kp_slow = 0.005f; // Proportionalbeiwert PID 0.0005
+	// Linefollower 
+	// absolut:
+static final float kp_fast = 0.003f;
+// static final double ki = 0.000; //Integrierbeiwert PID Linefollower
+// absolut:0.0082, neu:0.000
+static final float kd_fast = 0.03f; // Differenzierbeiwert PID Linefollower
+	// absolut:0.095, neu.0.025
+static final float kd_slow = 0.025f;// 0.028 0.033
+static final float V_FAST = 0.2f;
+static final float V_SLOW = 0.15f;
 
 	// global variables for exec_LINECTRL_ALGO_opt2
 	int v = 0;
@@ -169,7 +169,7 @@ public class ControlRST implements IControl {
 	int setPosePhase = 1;
 	static final float v_sp = 0.07f;
 	static final float kp_sp = 20.0f;// 20 10
-	static final float kd_sp = 200.0f;// 30 20höherer D-Anteil verhindert
+	static final float kd_sp = 50.0f;// 30 20höherer D-Anteil verhindert
 										// Schwingen nicht, verlangsamt es nur
 	double eold_sp = 0;
 	double strecke = 0;
@@ -234,7 +234,7 @@ public class ControlRST implements IControl {
 			this.angVelPerPercent=16.9f;
 			this.offsetAngVelPerPercent=-156.5f;
 		}
-		else if(akku>7.7 && akku<=8.3){
+		else if(akku>7.7 /*&& akku<=8.3*/){
 			this.angVelPerPercent=18.2f;
 			this.offsetAngVelPerPercent=-167.4f;
 			

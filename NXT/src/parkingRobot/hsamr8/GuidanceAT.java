@@ -58,6 +58,7 @@ public class GuidanceAT {
 		EXIT
 	}
 	static float initHeading=0f;
+	static int bsp=0;
 	
 	
 	/**
@@ -119,7 +120,19 @@ public class GuidanceAT {
 		INxtHmi  	hmi        = new HmiPLT(perception, navigation, control, monitor);
 		
 		monitor.startLogging();
-				
+		LCD.clear();
+		LCD.drawString("Auswahl Bsp.:", 0, 0);
+		LCD.drawString("links: 1", 0, 1);
+		LCD.drawString("rechts: 2", 0, 2);
+		if ( Button.LEFT.isDown() ){
+			bsp=1;
+			while(Button.LEFT.isDown()){Thread.sleep(1);}
+		}else if(Button.RIGHT.isDown()){
+			bsp=2;
+			while(Button.RIGHT.isDown()){Thread.sleep(1);}
+			monitor.writeGuidanceComment("2 gesetzt");
+		}
+						
 		while(true) {
 			//showData(navigation, perception);
 			
@@ -134,8 +147,16 @@ public class GuidanceAT {
 					if ( lastStatus != CurrentStatus.DRIVING ){
 						control.setCtrlMode(ControlMode.LINE_CTRL);
 					}
-					if(beispielsequenz2(navigation, control, monitor)){
+					if(bsp==1){
+						if(beispielsequenz1(navigation, control, monitor)){
 						currentStatus=CurrentStatus.INACTIVE;
+						}
+					}
+					else if(bsp==2){
+						monitor.writeGuidanceComment("bsp 2 aufgerufen");
+						if(beispielsequenz2(navigation, control, monitor)){
+							currentStatus=CurrentStatus.INACTIVE;
+						}
 					}
 					//While action				
 					{
@@ -166,7 +187,18 @@ public class GuidanceAT {
 					if ( lastStatus != CurrentStatus.INACTIVE ){
 						control.setCtrlMode(ControlMode.INACTIVE);
 					}
-					
+					LCD.clear();
+					LCD.drawString("Auswahl Bsp.:", 0, 0);
+					LCD.drawString("links: 1", 0, 1);
+					LCD.drawString("rechts: 2", 0, 2);
+					if ( Button.LEFT.isDown() ){
+						bsp=1;
+						while(Button.LEFT.isDown()){Thread.sleep(1);}
+					}else if(Button.RIGHT.isDown()){
+						bsp=2;
+						while(Button.RIGHT.isDown()){Thread.sleep(1);}
+						monitor.writeGuidanceComment("2 gesetzt");
+					}
 					//While action
 					{
 						//nothing to do here
@@ -174,6 +206,18 @@ public class GuidanceAT {
 					
 					//State transition check
 					lastStatus = currentStatus;
+					LCD.clear();
+					LCD.drawString("Auswahl Bsp.:", 0, 0);
+					LCD.drawString("links: 1", 0, 1);
+					LCD.drawString("rechts: 2", 0, 2);
+					if ( Button.LEFT.isDown() ){
+						bsp=1;
+						while(Button.LEFT.isDown()){Thread.sleep(1);}
+					}else if(Button.RIGHT.isDown()){
+						bsp=2;
+						while(Button.RIGHT.isDown()){Thread.sleep(1);}
+						monitor.writeGuidanceComment("2 gesetzt");
+					}
 					if ( hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT ){
 						currentStatus = CurrentStatus.DRIVING;						
 					}else if ( Button.ENTER.isDown() ){
