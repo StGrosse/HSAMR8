@@ -772,12 +772,12 @@ public class ControlRST implements IControl {
 		}
 		LCD.clear();
 		LCD.drawString(
-				Math.round(this.destination.getX()*100)/100.0f + ", " + Math.round(this.destination.getY()*100)/100.0f + ", " + Math.round(this.destination.getHeading()*100)/100.0f,
+				"Z: " + Math.round(this.destination.getX()*100)/100.0f + ", " + Math.round(this.destination.getY()*100)/100.0f + ", " + Math.round(this.destination.getHeading()*100)/100.0f,
 				0, 4);
-		LCD.drawString(Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
+		LCD.drawString("a: " + Math.round(this.currentPosition.getX()*100)/100.0f + ", " + Math.round(this.currentPosition.getY()*100)/100.0f + ", "
 				+ Math.round(this.currentPosition.getHeading()*100)/100.0f, 0, 5);
-		LCD.drawString(""+this.currentSlot, 0, 7);
-		LCD.drawString(""+T, 0, 3);
+		LCD.drawString(""+this.currentSlot, 0, 2);
+//		LCD.drawString(""+T, 0, 3);
 		LCD.drawString(""+path[0], 0, 0);
 		LCD.drawString(""+path[1], 0, 1);
 		LCD.drawString(""+path[2], 0, 2);
