@@ -436,7 +436,7 @@ public class GuidanceAT {
 	private static boolean beispielsequenz2(INavigation navigation, IControl control, IMonitor monitor){
 		if(phase==1){
 			navigation.setDetectionState(false);
-			control.setDestination(0.0, 0.1, 0.02);
+			control.setDestination(0.0, 0.1, 0.0);
 			phase=2;
 			return false;
 		}
@@ -446,11 +446,10 @@ public class GuidanceAT {
 				phase=3;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				
+
 				
-				
-				
-				float[]a={-0.06746355685131149f,1.8892128279883287f,-11.545189504373118f,13.994169096209816f};
-				control.setPath(a, false, navigation.getPose(), new Pose(0.45f,-0.28f,0.0f),0);
+				float[]a={-0.014000000000000103f,0.7200000000000024f,-4.200000000000016f,4.000000000000028f};
+				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.25f,0.0f),0);
 			}
 		return false;
 		}
@@ -459,8 +458,8 @@ public class GuidanceAT {
 			if(control.getParkStatus()){
 				phase=4;
 				control.setCtrlMode(ControlMode.INACTIVE);
-				float[]a={-0.06746355685131149f,1.8892128279883287f,-11.545189504373118f,13.994169096209816f};
-				control.setPath(a, true,new Pose(0.45f,-0.28f,0.0f), new Pose(0.1f,0.02f,0.0f),0);			
+				float[]a={-0.014000000000000103f,0.7200000000000024f,-4.200000000000016f,4.000000000000028f};
+				control.setPath(a, true,new Pose(0.6f,-0.25f,0.0f), new Pose(0.1f,0.0f,0.0f),0);			
 			}
 			return false;
 		}

@@ -169,7 +169,7 @@ static final float V_SLOW = 0.15f;
 	int setPosePhase = 1;
 	static final float v_sp = 0.07f;
 	static final float kp_sp = 20.0f;// 20 10
-	static final float kd_sp = 50.0f;// 30 20höherer D-Anteil verhindert
+	static final float kd_sp = 40.0f;// 30 20höherer D-Anteil verhindert
 										// Schwingen nicht, verlangsamt es nur
 	double eold_sp = 0;
 	double strecke = 0;
@@ -494,10 +494,10 @@ static final float V_SLOW = 0.15f;
 		rightMotor.forward();
 		float kp_l = 0.031f;
 		float ki_l = 0.00120f;// bei TA=100: 0.00120
-		float kd_l = 0.016f;// bei TA=100: 0.082
+		float kd_l = 0.015f;// bei TA=100: 0.082
 		float kp_r = 0.031f;
 		float ki_r = 0.00120f;
-		float kd_r = 0.015f;// bei TA=100: 0.084
+		float kd_r = 0.016f;// bei TA=100: 0.084
 
 		double[] speed = this.drive(this.velocity, this.angularVelocity); // berechne
 																			// benötigte
@@ -508,7 +508,8 @@ static final float V_SLOW = 0.15f;
 		// Steuerung der Motoren (ohne Regelung) auf Basis von experimentell
 		// bestimmter Proportionalitätskonstante
 		if (this.newVW) {
-			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) || (curve!=dest.no)) {
+			//monitor.writeControlComment("speed: "+speed[1]);
+			if ((this.currentCTRLMODE != ControlMode.LINE_CTRL) /*|| (curve!=dest.no)*/) {
 			
 				if (speed[0] > 0) {
 					steuerL = (int) ((2*Math.abs(speed[0]) - offsetAngVelPerPercent) / angVelPerPercent); // mit
@@ -518,11 +519,11 @@ static final float V_SLOW = 0.15f;
 
 				}
 				if (speed[1] > 0) {
-					steuerR = (int) ((Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
+					steuerR = (int) ((2*Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
 				} else if (speed[1] < 0) {
-					steuerR = -(int) ((Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
+					steuerR = -(int) ((2*Math.abs(speed[1]) - offsetAngVelPerPercent) / angVelPerPercent);
 				}
-
+				monitor.writeControlComment("Anstieg: "+angVelPerPercent);
 			}
 			// this.monitor.writeControlComment("links:
 			// "+(int)(Math.signum(speed[0])*(Math.abs(speed[0])-offsetAngVelPerPercentL)/angVelPerPercentL)+"
@@ -551,16 +552,16 @@ static final float V_SLOW = 0.15f;
 		double e_l = speed[0] - w_akt_l;// Fehler links in Grad/sec
 		double e_r = speed[1] - w_akt_r;// Fehler rechts in Grad/sec
 
-		double u_l = u_old_l;
-		double u_r = u_old_r;
+		double pw_l = u_old_l;
+		double pw_r = u_old_r;
 		if (this.currentCTRLMODE == ControlMode.LINE_CTRL || !this.newVW) {
 			esuml_vw += e_l;
 			esumr_vw += e_r;
 			// if(e_l<5)esuml_vw=0;
 			// if(e_r<5)esumr_vw=0;
 			// Berechnung der Stellgrößen (Pulsweite)
-			u_l = kp_l * e_l + ki_l * this.esuml_vw + kd_l * (e_l - this.eoldl_vw);
-			u_r = kp_r * e_r + ki_r * this.esumr_vw + kd_r * (e_r - this.eoldr_vw);
+			double u_l = kp_l * e_l + ki_l * this.esuml_vw + kd_l * (e_l - this.eoldl_vw);
+			double u_r = kp_r * e_r + ki_r * this.esumr_vw + kd_r * (e_r - this.eoldr_vw);
 
 			// fehler.add(0, e_r);
 			// geschw.add(0,w_akt_r);
@@ -575,9 +576,10 @@ static final float V_SLOW = 0.15f;
 
 			this.eoldl_vw = e_l;
 			this.eoldr_vw = e_r;
+			pw_l = Math.abs(u_old_l + u_l) > 100 ? 100 : u_old_l + u_l;
+			pw_r = Math.abs(u_old_r + u_r) > 100 ? 100 : u_old_r + u_r;
 		}
-		double pw_l = Math.abs(u_old_l + u_l) > 100 ? 100 : u_old_l + u_l;
-		double pw_r = Math.abs(u_old_r + u_r) > 100 ? 100 : u_old_r + u_r;
+		
 		u_old_l = (int) pw_l;
 		u_old_r = (int) pw_r;
 		// Ausschriften Dimensionierung links
@@ -598,6 +600,7 @@ static final float V_SLOW = 0.15f;
 		leftMotor.setPower((int) pw_l);
 		rightMotor.setPower((int) pw_r);
 		this.newVW = false;
+//		this.currentCTRLMODE=ControlMode.LINE_CTRL;
 
 	}
 
