@@ -12,6 +12,7 @@ import parkingRobot.IPerception.*;
 import lejos.nxt.Battery;
 import lejos.nxt.LCD;
 import lejos.nxt.NXTMotor;
+import lejos.nxt.Sound;
 //import lejos.nxt.Sound;
 import parkingRobot.INavigation;
 //import lejos.nxt.Sound;
@@ -51,15 +52,15 @@ public class ControlRST implements IControl {
 	// static final int akku_max = 0; //maximum voltage of akku in mV
 
 	// parameter for exec_LINECTRL_ALGO_opt2
-	static final float kp_slow = 0.005f; // Proportionalbeiwert PID 0.0005
+	static final float kp_slow = 0.0043f; // Proportionalbeiwert PID 0.0005
 											// Linefollower 
 											// absolut:
-	static final float kp_fast = 0.003f;
+	static final float kp_fast = 0.002f;
 	// static final double ki = 0.000; //Integrierbeiwert PID Linefollower
 	// absolut:0.0082, neu:0.000
-	static final float kd_fast = 0.03f; // Differenzierbeiwert PID Linefollower
+	static final float kd_fast = 0.023f; // Differenzierbeiwert PID Linefollower
 											// absolut:0.095, neu.0.025
-	static final float kd_slow = 0.025f;// 0.028 0.033
+	static final float kd_slow = 0.032f;// 0.028 0.033
 	static final float V_FAST = 0.2f;
 	static final float V_SLOW = 0.15f;
 
@@ -478,7 +479,7 @@ public class ControlRST implements IControl {
 	 * simple test.
 	 */
 	private void exec_VWCTRL_ALGO() {
-		monitor.writeControlComment("VW aufgerufen " + this.velocity + " " + this.angularVelocity);
+		//monitor.writeControlComment("VW aufgerufen " + this.velocity + " " + this.angularVelocity);
 		leftMotor.forward();
 		rightMotor.forward();
 		float kp_l = 0.031f;
@@ -491,7 +492,7 @@ public class ControlRST implements IControl {
 		double[] speed = this.drive(this.velocity, this.angularVelocity); // berechne
 																			// benötigte
 																			// Winkelgeschwindigkeiten
-		this.monitor.writeControlComment("Zielgeschwindigkeit: " + speed[1]);
+		//this.monitor.writeControlComment("Zielgeschwindigkeit: " + speed[1]);
 		int steuerL = 0;
 		int steuerR = 0;
 		// Steuerung der Motoren (ohne Regelung) auf Basis von experimentell
@@ -1114,9 +1115,9 @@ public class ControlRST implements IControl {
 			kp = kp_fast;
 
 		} else {
-			this.setVelocity(V_FAST);
-			kd = kd_fast;
-			kp = kp_fast;
+			this.setVelocity(V_SLOW);
+			kd = kd_slow;
+			kp = kp_slow;
 		}
 		int e = this.lineSensorLeft - this.lineSensorRight; // Berechne Fehler
 															// aus Differenz der
@@ -1401,6 +1402,8 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve1: x:"+x+" y:"+y);
 			if (y < 0.05 && x > 1.65) {
 				monitor.writeControlComment("Kurve 1 möglich");
+				//Sound.beep();
+				
 				return dest.left;// Kurve 1
 			} else
 				return dest.no;
@@ -1408,13 +1411,15 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve2: x:"+x+" y:"+y);
 			if (y > 0.45 && x > 1.75) {
 				monitor.writeControlComment("Kurve 2 möglich");
+//				Sound.beep();
 				return dest.left;// Kurve2
 			} else
 				return dest.no;
 		} else if (x > 1.45 && x < 1.65 && y > 0.45) {
 			// monitor.writeControlComment("nah Kurve3: x:"+x+" y:"+y);
-			if (x > 1.45 && x < 1.60 && y > 0.55) {
+			if (x > 1.45 && x < 1.63 && y > 0.55) {
 				monitor.writeControlComment("Kurve 3 möglich");
+//				Sound.beep();
 				return dest.left;
 			} else
 				return dest.no;
@@ -1422,6 +1427,7 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve4: x:"+x+" y:"+y);
 			if (x > 1.45 && x < 1.55 && y < 0.45 && y > 0.25) {
 				monitor.writeControlComment("Kurve 4 möglich");
+//				Sound.beep();
 				return dest.right;// Kurve 4
 			} else
 				return dest.no;
@@ -1429,6 +1435,7 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve5: x:"+x+" y:"+y);
 			if (x < 0.45 && x > 0.25 && y < 0.35 && y > 0.25) {
 				monitor.writeControlComment("Kurve 5 möglich");
+//				Sound.beep();
 				return dest.right;// Kurve 5
 			} else
 				return dest.no;
@@ -1436,6 +1443,7 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve6: x:"+x+" y:"+y);
 			if (x < 0.35 && x > 0.25 && y > 0.45) {
 				monitor.writeControlComment("Kurve 6 möglich");
+//				Sound.beep();
 				return dest.left;
 			} else
 				return dest.no;
@@ -1443,6 +1451,7 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve7: x:"+x+" y:"+y);
 			if (x < 0.15 && y > 0.55) {
 				monitor.writeControlComment("Kurve 7 möglich");
+//				Sound.beep();
 				return dest.left;// Kurve7
 			} else
 				return dest.no;
@@ -1450,6 +1459,7 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve8: x:"+x+" y:"+y);
 			if (x < 0.05 && y < 0.16) {
 				monitor.writeControlComment("Kurve 8 möglich");
+//				Sound.beep();
 				return dest.left;// Kurve8
 			} else
 				return dest.no;

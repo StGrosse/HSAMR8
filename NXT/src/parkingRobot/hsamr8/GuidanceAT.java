@@ -355,6 +355,18 @@ public class GuidanceAT
 
 				if (lastModus != CurrentModus.PAUSE) 				// Initialbefehle (nur bei erstmaligen Aufruf)
 				{
+					ParkingSlot[] Slots=navigation.getParkingSlots();
+					 monitor.writeNavigationComment("Array startet hier ");
+						for (int i=0;i<Slots.length;i++ ) {	 
+					    monitor.writeNavigationComment("X_BACK "+Slots[i].getBackBoundaryPosition().x);
+						monitor.writeNavigationComment("Y_BACK "+Slots[i].getBackBoundaryPosition().y);
+					    monitor.writeNavigationComment("X_FRONT "+Slots[i].getFrontBoundaryPosition().x);
+					    monitor.writeNavigationComment("Y_FRONT "+Slots[i].getFrontBoundaryPosition().y);
+					    monitor.writeNavigationComment("Parken_ID "+Slots[i].getID());
+					    monitor.writeNavigationComment("STATUS "+Slots[i].getStatus());
+					    monitor.writeNavigationComment("index "+i);
+					    monitor.writeNavigationComment( "grose des Arrays:"+Slots.length);
+	    				}
 					control.setCtrlMode(ControlMode.INACTIVE);
 					navigation.setDetectionState(false);
 					currentStatus = CurrentStatus.INACTIVE;

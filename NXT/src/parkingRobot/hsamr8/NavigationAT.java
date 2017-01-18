@@ -95,11 +95,11 @@ public class NavigationAT implements INavigation{
 	/**
 	 * robot specific constant: radius of left wheel
 	 */
-	static final double LEFT_WHEEL_RADIUS	= 	0.028; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double LEFT_WHEEL_RADIUS	= 	0.0276; // only rough guess, to be measured exactly and maybe refined by experiments
 	/**
 	 * robot specific constant: radius of right wheel
 	 */
-	static final double RIGHT_WHEEL_RADIUS	= 	0.028; // only rough guess, to be measured exactly and maybe refined by experiments
+	static final double RIGHT_WHEEL_RADIUS	= 	0.0276; // only rough guess, to be measured exactly and maybe refined by experiments
 	/**
 	 * robot specific constant: distance between wheels
 	 */
@@ -866,7 +866,10 @@ public class NavigationAT implements INavigation{
 			            Slots = new ParkingSlot[slotList.size()];
 			            Slots = slotList.toArray(Slots);  //create a new array
 				  }
-				  
+				 
+				 if(round==2){ 
+	    			   
+				 }
 			    if(round>=1){
 			    		
 				    	for(int i=0; i<Slots.length-1;i++){
@@ -876,6 +879,7 @@ public class NavigationAT implements INavigation{
 				    		try{
 				    		if(sameSlot(Slots[i],getParkingSlots)){
 				    			   if(Slots[i].getStatus()==ParkingSlotStatus.GOOD){
+				    		//		 if(Slots[i].getStatus()==ParkingSlotStatus.GOOD&&Slots[i].getMeasurementQuality()<=getParkingSlots.getMeasurementQuality()){
 				    				   Point newBackBoundry=new Point((float)(Slots[i].getBackBoundaryPosition().getX()+getParkingSlots.getBackBoundaryPosition().getX())/2);
 									   Point newFrontBoundry=new Point((float)(Slots[i].getFrontBoundaryPosition().getX()+getParkingSlots.getFrontBoundaryPosition().getX())/2);
 									   getParkingSlots.setBackBoundaryPosition(newBackBoundry);
@@ -893,7 +897,7 @@ public class NavigationAT implements INavigation{
 								       Slots = slotList.toArray(Slots);
 								       break;
 				    			   }
-				    			
+
 				    		}
 				    		else{
 				    			slotList.add(getParkingSlots);
@@ -901,6 +905,7 @@ public class NavigationAT implements INavigation{
 				    	   		Slots = slotList.toArray(Slots);  //create a new array 
 				    	   		break;
 				    		}
+				    		
 				    		}catch(NullPointerException d){
 				    			LCD.drawString("nullpointer for", 0, 5);
 				    			return;
@@ -983,7 +988,8 @@ public class NavigationAT implements INavigation{
 					double frontparkPositionX = Math.abs(x.getFrontBoundaryPosition().getX()) + Math.abs(x.getFrontBoundaryPosition().getY());
 					double backparkPositionX = Math.abs(x.getBackBoundaryPosition().getX()) + Math.abs(x.getBackBoundaryPosition().getY());
 					double parkingSlotLength1 = Math.abs(frontparkPositionX - backparkPositionX);
-					if(parkingSlotLength>=parkingSlotLength1&& x.getStatus()==ParkingSlotStatus.GOOD){
+			    	if(parkingSlotLength>=parkingSlotLength1&& x.getStatus()==ParkingSlotStatus.GOOD){
+				//	if(parkingSlotLength>=parkingSlotLength1){
 						return true;
 					   }
 					 else{
@@ -1008,10 +1014,10 @@ public class NavigationAT implements INavigation{
 			//	double parkingSlotLength = Math.abs(frontparkPosition - backparkPosition);
 				switch(parkenSlot_ID){
 				case 0:
-					  if(Math.abs(parkingSlotLength-wahrenWert[0])<=0.15){
+					  if(Math.abs(parkingSlotLength-wahrenWert[0])<=0.05){
 						  measurementQuality=3;
 					  }
-					  else if(Math.abs(parkingSlotLength-wahrenWert[0])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[0])>0.15)){
+					  else if(Math.abs(parkingSlotLength-wahrenWert[0])<0.15&&(Math.abs(parkingSlotLength-wahrenWert[0])>0.05)){
 						  measurementQuality=2;
 					  }
 					  else{
@@ -1019,10 +1025,10 @@ public class NavigationAT implements INavigation{
 					  }
 					  break;
 				case 1:
-					  if(Math.abs(parkingSlotLength-wahrenWert[1])<=0.15){
+					  if(Math.abs(parkingSlotLength-wahrenWert[1])<=0.05){
 						  measurementQuality=3;
 					  }
-					  else if(Math.abs(parkingSlotLength-wahrenWert[1])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[1])>0.15)){
+					  else if(Math.abs(parkingSlotLength-wahrenWert[1])<0.15&&(Math.abs(parkingSlotLength-wahrenWert[1])>0.05)){
 						  measurementQuality=2;
 					  }
 					  else{
@@ -1030,10 +1036,10 @@ public class NavigationAT implements INavigation{
 					  }
 					  break;
 				case 2:
-					  if(Math.abs(parkingSlotLength-wahrenWert[2])<=0.15){
+					  if(Math.abs(parkingSlotLength-wahrenWert[2])<=0.05){
 						  measurementQuality=3;
 					  }
-					  else if(Math.abs(parkingSlotLength-wahrenWert[2])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[2])>0.15)){
+					  else if(Math.abs(parkingSlotLength-wahrenWert[2])<0.15&&(Math.abs(parkingSlotLength-wahrenWert[2])>0.05)){
 						  measurementQuality=2;
 					  }
 					  else{
@@ -1041,10 +1047,10 @@ public class NavigationAT implements INavigation{
 					  }
 					  break;
 				case 3:
-					  if(Math.abs(parkingSlotLength-wahrenWert[3])<=0.15){
+					  if(Math.abs(parkingSlotLength-wahrenWert[3])<=0.05){
 						  measurementQuality=3;
 					  }
-					  else if(Math.abs(parkingSlotLength-wahrenWert[3])<0.25&&(Math.abs(parkingSlotLength-wahrenWert[3])>0.15)){
+					  else if(Math.abs(parkingSlotLength-wahrenWert[3])<0.15&&(Math.abs(parkingSlotLength-wahrenWert[3])>0.05)){
 						  measurementQuality=2;
 					  }
 					  else{

@@ -192,6 +192,7 @@ public class HmiPLT implements INxtHmi{
 					e.printStackTrace();
 				}} //wait for button release
 				useHMI = false;
+				LCD.clear();
 				return false;
 			}
 		}
