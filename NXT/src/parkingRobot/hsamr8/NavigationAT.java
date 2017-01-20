@@ -411,9 +411,11 @@ public class NavigationAT implements INavigation {
 			yResult = Math.sin(w * deltaT) * (this.pose.getX() - ICCx)
 					+ Math.cos(w * deltaT) * (this.pose.getY() - ICCy) + ICCy;
 			angleResult = this.pose.getHeading() + w * deltaT;
-			if (angleResult > Math.PI * 1.77) {
-				angleResult = 0;
-				if (this.parkingSlotDetectionIsOn) {
+			
+			if (this.parkingSlotDetectionIsOn) {
+				if (angleResult > Math.PI * 1.77) {
+					angleResult = 0;
+				
 					xResult = 0.02;
 					yResult = 0.0;
 					currentLine = 0;
@@ -423,8 +425,14 @@ public class NavigationAT implements INavigation {
 		}
 		if (this.parkingSlotDetectionIsOn) {
 			float heading = this.pose.getHeading();
+			if(vorwärts){
+				while(heading <0){
+					heading+=2*Math.PI;
+				}
+			}
 			// line0
 			if (vorwärts) {
+				monitor.writeControlComment("vorwärts");
 				if ((heading < Math.PI * 0.10) && (heading > -Math.PI * 0.10)) {
 					currentLine = 0;
 				}
@@ -550,6 +558,7 @@ public class NavigationAT implements INavigation {
 
 			}
 			if (!vorwärts) {
+				monitor.writeControlComment("rückwärts");
 				if ((heading < Math.PI * 1.10) && (heading > Math.PI * 0.90)) {
 					currentLine = 0;
 				}

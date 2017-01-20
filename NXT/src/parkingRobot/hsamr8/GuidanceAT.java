@@ -377,10 +377,10 @@ public class GuidanceAT {
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(true);
 				navigation.setLine(1);
+				navigation.setPose((float)(3*Math.PI/2));
 				control.setStartTime(20);//Behelf
 				navigation.setInv(true);
 				control.setBackward(true);
-				navigation.setPose((float)(3*Math.PI/2));
 				neu=true;
 				
 			}
@@ -391,16 +391,19 @@ public class GuidanceAT {
 			Pose currentPose=navigation.getPose();
 			if(control.getAmountOfCurves()==1 && neu){
 				navigation.setLine(0);
-				navigation.setPose((float)Math.PI);
+				navigation.setPose(-(float)Math.PI);
 				navigation.setPoint(1.78f, 0.0f);
 				neu=false;
+				control.setStartTime(-1);
 			}
-			if(currentPose.getX()>3.5 || currentPose.getX()<0.05){
+			if(control.getAmountOfCurves()==2){
+				monitor.writeControlComment("phase 8");
 				phase=8;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
 				control.setBackward(false);
 				navigation.setPose((float)Math.PI);
+				navigation.setPoint(0, 0);
 				Pose pose = navigation.getPose();
 				control.setDestination(0.0, pose.getX(),pose.getY() );
 				//Koordinaten auf Startposition setzen:
@@ -413,6 +416,7 @@ public class GuidanceAT {
 			
 			control.setCtrlMode(ControlMode.SETPOSE);
 			if(control.getParkStatus()){
+				monitor.writeControlComment("phase 9");
 				phase=9;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
@@ -428,8 +432,8 @@ public class GuidanceAT {
 				phase=10;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
-				float[]a={-0.1103703703703716f,1.8962962962963157f,-7.901234567901323f,7.023319615912314f};
-				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.3f,0.0f), 0);
+				float[]a={-0.014000000000000103f,0.7200000000000024f,-4.200000000000016f,4.000000000000028f};
+				control.setPath(a, false, navigation.getPose(), new Pose(0.6f,-0.25f,0.0f),0);
 			}
 			return false;
 

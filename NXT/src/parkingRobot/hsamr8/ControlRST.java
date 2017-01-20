@@ -324,6 +324,7 @@ public class ControlRST implements IControl {
 		this.destination.setLocation((float) x, (float) y);
 		this.firstSetPose = true;
 		this.setPosePhase = 1;
+		this.ParkStatus=false;
 	}
 
 	/**
@@ -373,8 +374,14 @@ public class ControlRST implements IControl {
 	public void setStartTime(int startTime) {
 		this.startTime = startTime / 1000.0f;
 		lock=15;
-		kurven=0;
-	}
+		if(startTime == -1){
+			lock=70;
+		}
+		if(!(startTime==-1)){
+			kurven=0;
+
+		}
+			}
 	
 	public int getAmountOfCurves(){
 		return kurven;
@@ -489,7 +496,7 @@ public class ControlRST implements IControl {
 	 * simple test.
 	 */
 	private void exec_VWCTRL_ALGO() {
-		monitor.writeControlComment("VW aufgerufen " + this.velocity + " " + this.angularVelocity);
+		//monitor.writeControlComment("VW aufgerufen " + this.velocity + " " + this.angularVelocity);
 		leftMotor.forward();
 		rightMotor.forward();
 		float kp_l = 0.031f;
@@ -498,11 +505,12 @@ public class ControlRST implements IControl {
 		float kp_r = 0.031f;
 		float ki_r = 0.00120f;
 		float kd_r = 0.016f;// bei TA=100: 0.084
-
+		monitor.writeControlVar("v", "" + this.velocity);
+		monitor.writeControlVar("w" ,""+ this.angularVelocity);
 		double[] speed = this.drive(this.velocity, this.angularVelocity); // berechne
 																			// ben鰐igte
 																			// Winkelgeschwindigkeiten
-		this.monitor.writeControlComment("Zielgeschwindigkeit: " + speed[1]);
+		//this.monitor.writeControlComment("Zielgeschwindigkeit: " + speed[1]);
 		int steuerL = 0;
 		int steuerR = 0;
 		// Steuerung der Motoren (ohne Regelung) auf Basis von experimentell
@@ -583,27 +591,26 @@ public class ControlRST implements IControl {
 		u_old_l = (int) pw_l;
 		u_old_r = (int) pw_r;
 		// Ausschriften Dimensionierung links
-		monitor.writeControlVar("wZielL", "" + speed[0]);
-		monitor.writeControlVar("wRadLinks", "" + w_akt_l);
+		//monitor.writeControlVar("wZielL", "" + speed[0]);
+		//monitor.writeControlVar("wRadLinks", "" + w_akt_l);
 		// monitor.writeControlVar("FehlerLinks","" + e_l);
 		// monitor.writeControlVar("PWLinks","" + (int)pw_l);
 
 		// Ausschriften Dimensionierung rechts
-		monitor.writeControlVar("wZielR", "" + speed[1]);
-		monitor.writeControlVar("wRadRechts", "" + w_akt_r);
+		//monitor.writeControlVar("wZielR", "" + speed[1]);
+		//monitor.writeControlVar("wRadRechts", "" + w_akt_r);
 		// monitor.writeControlVar("FehlerRechts",""+e_r);
 		// monitor.writeControlVar("PWRechts",""+(int)pw_r);
 
 		// Ansteuerung der Motoren
-		monitor.writeControlComment("pulsweite links:" + pw_l);
-		monitor.writeControlComment("pulsweite rechts:" + pw_r);
+		//monitor.writeControlComment("pulsweite links:" + pw_l);
+		//monitor.writeControlComment("pulsweite rechts:" + pw_r);
 		leftMotor.setPower((int) pw_l);
 		rightMotor.setPower((int) pw_r);
 		this.newVW = false;
 //		this.currentCTRLMODE=ControlMode.LINE_CTRL;
 
 	}
-
 	private void exec_SETPOSE_ALGO() {
 		double deltax = this.destination.getX() - this.currentPosition.getX();
 		this.monitor.writeControlComment("deltax: " + deltax);
@@ -1113,7 +1120,6 @@ public class ControlRST implements IControl {
 	 */
 
 	private void exec_LINECTRL_ALGO_opt2() {
-		LCD.drawString(""+this.currentPosition.getX()+" "+this.currentPosition.getY(), 0, 0);
 		this.ParkStatus = false;
 		this.monitor.writeControlComment("Linectrl aufgerufen");
 		// leftMotor.forward();
@@ -1168,6 +1174,7 @@ public class ControlRST implements IControl {
 
 				if (a == dest.right
 						&& ((e - eold) >= 15) /* && (this.lineSensorLeft>=50) */ && (this.lineSensorRight <= 50)) {
+					
 					this.curve = nearCurve();
 					this.encoderSumL = 0;
 					this.encoderSumR = 0;
@@ -1203,7 +1210,6 @@ public class ControlRST implements IControl {
 			lock--;
 		}
 	}
-
 	/**
 	 * erster Versuch einer Kurvenfahrt durch Beschreibung eines Bogens,
 	 * scheitert an der starken Abh鋘gigkeit des gefahrenen Radius von
@@ -1231,12 +1237,13 @@ public class ControlRST implements IControl {
 																						// der
 																						// Genauigkeit
 		if (av_encoderSum < 190 && straight) { // Fahrt zum Kurvenscheitel,
-												// 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360�
+												// 200=dist(Sensor,Rad)/(2*pi*r_wheel)*360
 			this.setAngularVelocity(0.0);
 			this.setVelocity(0.1);
 			this.innerLoop();
 			// this.update_VWCTRL_Parameter();
 			// this.exec_VWCTRL_ALGO();
+			
 
 		} else if (av_encoderSum >= 190 && straight) {// beenden des Fahrens bis
 														// zum Kurvenscheitel
@@ -1245,6 +1252,12 @@ public class ControlRST implements IControl {
 			//this.stop();
 			encoderSumL = 0;
 			encoderSumR = 0;
+			if(this.backward && this.kurven==1){
+				this.stop();
+				this.kurven=2;
+				this.monitor.writeControlComment(" kurven: "+kurven);
+				return;
+			}
 			av_encoderSum = 0; // R點ksetzen des Durchschnitts, um sofortigen
 								// Kurvenabbruch zu verhindern
 		}
@@ -1291,7 +1304,6 @@ public class ControlRST implements IControl {
 			}
 		}
 	}
-
 	private void stop() {
 		this.setAngularVelocity(0.0);
 		this.setVelocity(0.0);
@@ -1413,8 +1425,8 @@ public class ControlRST implements IControl {
 		double y = this.currentPosition.getY();
 		if (this.backward){
 			monitor.writeControlComment("backward");
-			if((y>1.0 || y<0.2) && x>1.5 && x<2.0){
-				if(y>0.85 || y<0.15){
+			if((y>0.65 || y<0.35) && x>1.5 && x<2.0){
+				if(y>0.65 || y<0.35){
 					monitor.writeControlComment("Kurve 1 m鰃lich back oben");
 					return dest.right;
 					
@@ -1422,13 +1434,15 @@ public class ControlRST implements IControl {
 				
 				else return dest.no;
 			}
-			else if(x>3.0 || x<0.2){
-				/*if(x>3.25){
+			else if(x>2.8 || x<0.2){
+				if(x>3.1){
 					monitor.writeControlComment("Kurve 0 m鰃lich");
 					return dest.right;
 					
-				}*/
-				return dest.no;
+				}
+				else{
+					return dest.no;
+				}
 			}
 			else return null;
 		}
