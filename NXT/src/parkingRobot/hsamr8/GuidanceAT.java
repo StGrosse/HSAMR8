@@ -194,9 +194,13 @@ public class GuidanceAT {
 					if ( Button.LEFT.isDown() ){
 						bsp=1;
 						while(Button.LEFT.isDown()){Thread.sleep(1);}
+						LCD.clear();
+						LCD.drawString("fahre Bsp. 1", 0, 0);
 					}else if(Button.RIGHT.isDown()){
 						bsp=2;
 						while(Button.RIGHT.isDown()){Thread.sleep(1);}
+						LCD.clear();
+						LCD.drawString("fahre Bsp. 2", 0, 0);
 						monitor.writeGuidanceComment("2 gesetzt");
 					}
 					//While action
@@ -213,9 +217,13 @@ public class GuidanceAT {
 					if ( Button.LEFT.isDown() ){
 						bsp=1;
 						while(Button.LEFT.isDown()){Thread.sleep(1);}
+						LCD.clear();
+						LCD.drawString("fahre Bsp. 1", 0, 0);
 					}else if(Button.RIGHT.isDown()){
 						bsp=2;
 						while(Button.RIGHT.isDown()){Thread.sleep(1);}
+						LCD.clear();
+						LCD.drawString("fahre Bsp. 2", 0, 0);
 						monitor.writeGuidanceComment("2 gesetzt");
 					}
 					if ( hmi.getMode() == parkingRobot.INxtHmi.Mode.SCOUT ){
@@ -348,9 +356,12 @@ public class GuidanceAT {
 		else if(phase==5){
 			control.setCtrlMode(ControlMode.LINE_CTRL);
 			Pose currentPose=navigation.getPose();
-			if(currentPose.getX()>0.005 && currentPose.getY()<0.01 && control.getAmountOfCurves()==4){
+			while(currentPose.getHeading()>Math.PI){
+				currentPose.setHeading((currentPose.getHeading()-(float)(2*Math.PI)));
+			}
+			if(currentPose.getX()>0.005 && currentPose.getY()<0.01 && control.getAmountOfCurves()==4/* && currentPose.getHeading()<Math.PI/30 && currentPose.getHeading()>-Math.PI/30*/){
 				phase=6;
-				navigation.setPose(0.0f);
+				//navigation.setPose(0.0f);
 				control.setCtrlMode(ControlMode.INACTIVE);
 				control.setDestination(1.5*Math.PI, 1.82, 0.62);	
 				navigation.setDetectionState(false);
@@ -390,25 +401,28 @@ public class GuidanceAT {
 				navigation.setDetectionState(false);
 				control.setBackward(false);
 				navigation.setPose((float)Math.PI);
+				Pose pose = navigation.getPose();
+				control.setDestination(0.0, pose.getX(),pose.getY() );
 				//Koordinaten auf Startposition setzen:
 				
 			}
 			return false;
 		}
 		else if(phase==8){
-			Pose pose = navigation.getPose();
-			control.setDestination(0.0, pose.getX(),pose.getY() );
+			
+			
 			control.setCtrlMode(ControlMode.SETPOSE);
 			if(control.getParkStatus()){
 				phase=9;
 				control.setCtrlMode(ControlMode.INACTIVE);
 				navigation.setDetectionState(false);
+				control.setDestination(0.0, 0.15, 0.02);
 			}
 			return false;
 
 		}
 		else if(phase==9){
-			control.setDestination(0.0, 0.15, 0.02);
+			
 			control.setCtrlMode(ControlMode.SETPOSE);
 			if(control.getParkStatus()){
 				phase=10;

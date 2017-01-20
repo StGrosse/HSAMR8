@@ -52,17 +52,17 @@ public class ControlRST implements IControl {
 	// static final int akku_max = 0; //maximum voltage of akku in mV
 
 	// parameter for exec_LINECTRL_ALGO_opt2
-	float kp_slow = 0.005f; // Proportionalbeiwert PID 0.0005
+	static final float kp_slow = 0.0043f; // Proportionalbeiwert PID 0.0005
 	// Linefollower 
 	// absolut:
-static final float kp_fast = 0.003f;
-// static final double ki = 0.000; //Integrierbeiwert PID Linefollower
-// absolut:0.0082, neu:0.000
-static final float kd_fast = 0.03f; // Differenzierbeiwert PID Linefollower
+	static final float kp_fast = 0.0015f;
+	// static final double ki = 0.000; //Integrierbeiwert PID Linefollower
+	// absolut:0.0082, neu:0.000
+	static final float kd_fast = 0.023f; // Differenzierbeiwert PID Linefollower
 	// absolut:0.095, neu.0.025
-static final float kd_slow = 0.025f;// 0.028 0.033
-static final float V_FAST = 0.2f;
-static final float V_SLOW = 0.15f;
+	static final float kd_slow = 0.035f;// 0.028 0.033
+	static final float V_FAST = 0.2f;
+	static final float V_SLOW = 0.15f;
 
 	// global variables for exec_LINECTRL_ALGO_opt2
 	int v = 0;
@@ -1260,7 +1260,7 @@ static final float V_SLOW = 0.15f;
 				kurven++;
 			} else {
 				this.setVelocity(0.0);
-				this.setAngularVelocity(-Math.PI / 6);
+				this.setAngularVelocity(-Math.PI / 3);
 				this.innerLoop();
 				// this.update_VWCTRL_Parameter();
 				// this.exec_VWCTRL_ALGO();
@@ -1281,7 +1281,7 @@ static final float V_SLOW = 0.15f;
 				this.kurven++;
 			} else {
 				this.setVelocity(0.0);
-				this.setAngularVelocity(Math.PI / 6);
+				this.setAngularVelocity(Math.PI / 3);
 				this.innerLoop();
 				// this.update_VWCTRL_Parameter();
 				// this.exec_VWCTRL_ALGO();
@@ -1299,6 +1299,7 @@ static final float V_SLOW = 0.15f;
 		this.leftMotor.stop();
 		this.rightMotor.stop();
 		this.eold=0;
+		this.eold_sp=0;
 		//this.lock=20;
 	}
 
@@ -1413,15 +1414,15 @@ static final float V_SLOW = 0.15f;
 		if (this.backward){
 			monitor.writeControlComment("backward");
 			if((y>1.0 || y<0.2) && x>1.5 && x<2.0){
-				if(y>0.85){
-					monitor.writeControlComment("Kurve 1 möglich");
+				if(y>0.85 || y<0.15){
+					monitor.writeControlComment("Kurve 1 möglich back oben");
 					return dest.right;
 					
 				}
 				
 				else return dest.no;
 			}
-			else if(x>3.0){
+			else if(x>3.0 || x<0.2){
 				/*if(x>3.25){
 					monitor.writeControlComment("Kurve 0 möglich");
 					return dest.right;
@@ -1436,7 +1437,7 @@ static final float V_SLOW = 0.15f;
 		if (y < 0.3 && x > 1.60) {
 			// monitor.writeControlComment("nah Kurve1: x:"+x+" y:"+y);
 			if(this.backward){
-				if(y<0.15 && x >1.7){
+				if(y<0.2 && x >1.7){
 					monitor.writeControlComment("Kurve 1 möglich: "+this.lock);
 					return dest.right;// Kurve 1
 				}
@@ -1492,13 +1493,22 @@ static final float V_SLOW = 0.15f;
 				return dest.left;// Kurve7
 			} else
 				return dest.no;
-		} else if (x < 0.05 && y < 0.3) {
+		} else if (x < 0.2 && y < 0.3) {
 			// monitor.writeControlComment("nah Kurve8: x:"+x+" y:"+y);
-			if (x < 0.05 && y < 0.16) {
-				monitor.writeControlComment("Kurve 8 möglich");
-				return dest.left;// Kurve8
-			} else
-				return dest.no;
+			if(backward){
+				if(x<0.2 && y<0.05){
+					monitor.writeControlComment("Kurve 8 möglich back");
+					return dest.right;
+				}
+				else return dest.no;
+				
+			}
+			else{
+				if (x < 0.05 && y < 0.16) {
+					monitor.writeControlComment("Kurve 8 möglich");
+					return dest.left;// Kurve8
+				} else	return dest.no;
+			}
 		} else
 			return null;
 	}
