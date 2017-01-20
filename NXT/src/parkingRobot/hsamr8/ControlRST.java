@@ -55,12 +55,12 @@ public class ControlRST implements IControl {
 	static final float kp_slow = 0.0043f; // Proportionalbeiwert PID 0.0005
 	// Linefollower 
 	// absolut:
-	static final float kp_fast = 0.0015f;
+	static final float kp_fast = 0.002f;
 	// static final double ki = 0.000; //Integrierbeiwert PID Linefollower
 	// absolut:0.0082, neu:0.000
 	static final float kd_fast = 0.023f; // Differenzierbeiwert PID Linefollower
 	// absolut:0.095, neu.0.025
-	static final float kd_slow = 0.035f;// 0.028 0.033
+	static final float kd_slow = 0.032f;// 0.028 0.033
 	static final float V_FAST = 0.2f;
 	static final float V_SLOW = 0.15f;
 
