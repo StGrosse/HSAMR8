@@ -256,8 +256,18 @@ public class GuidanceAT
 				{												// Zielkoordinaten setzen:
 					xz1 = Zielkoordinaten[0];
 					yz1 = Zielkoordinaten[1];
+					float [] a=Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1);
 
-					control.setPath(Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1), false, new Pose(Startkoordinaten[0], Startkoordinaten[1],navigation.getPose().getHeading()),
+					LCD.drawString("xz1 "+xz1, 0, 0);
+					
+					LCD.drawString("yz1 "+yz1, 0, 1);
+					LCD.drawString("xs1 "+Startkoordinaten[0], 0, 2);
+					LCD.drawString("ys1 "+Startkoordinaten[1], 0, 3);
+					LCD.drawString("a0 "+a[0], 0, 4);
+					LCD.drawString("a1 "+a[1], 0, 5);
+					LCD.drawString("a2 "+a[2], 0, 6);
+					LCD.drawString("a3 "+a[3], 0, 7);
+					control.setPath(a, false, new Pose(Startkoordinaten[0], Startkoordinaten[1],navigation.getPose().getHeading()),
 							new Pose(xz1, yz1, navigation.getPose().getHeading()), line); 	// Pfad setzen
 					control.setCtrlMode(ControlMode.PARK_CTRL);								// Park Control anschalten, damit Pfad abgefahren wird
 					navigation.setDetectionState(false);
@@ -313,8 +323,17 @@ public class GuidanceAT
 
 					xz = Startkoordinaten[0];  // Zielkoordinaten = Startkoordinaten von Einparken (da jetzt rückwärts ausgeparkt wird)
 					yz = Startkoordinaten[1];
-
-                    control.setPath(Pfadgenerator(xs, ys, xz, yz), true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line); 	// Pfad setzen
+					float[]b=Pfadgenerator(xs, ys, xz, yz);
+					LCD.drawString("xz "+xz, 0, 0);
+					
+					LCD.drawString("yz "+yz, 0, 1);
+					LCD.drawString("xs "+xs, 0, 2);
+					LCD.drawString("ys "+ys, 0, 3);
+					LCD.drawString("a0 "+b[0], 0, 4);
+					LCD.drawString("a1 "+b[1], 0, 5);
+					LCD.drawString("a2 "+b[2], 0, 6);
+					LCD.drawString("a3 "+b[3], 0, 7);
+                    control.setPath(b, true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line); 	// Pfad setzen
 
 					control.setCtrlMode(ControlMode.PARK_CTRL);
 

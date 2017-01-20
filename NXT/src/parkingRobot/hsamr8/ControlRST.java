@@ -241,19 +241,19 @@ public class ControlRST implements IControl {
 		 * monitor.addControlVar("LeftMotor");
 		 */
 		// MONITOR für Dimensionierung PID-Regler V/W-Control linkes Rad
-		monitor.addControlVar("wRadLinks");
-		monitor.addControlVar("wZielL");
+		//monitor.addControlVar("wRadLinks");
+		//monitor.addControlVar("wZielL");
 		// monitor.addControlVar("FehlerLinks");
 		// monitor.addControlVar("PWLinks");*/
 		// MONITOR für Dimensionierung PID-Regler V/W-Control rechtes Rad
-		monitor.addControlVar("wRadRechts");
+		//monitor.addControlVar("wRadRechts");
 		// monitor.addControlVar("FehlerRechts");
 		// monitor.addControlVar("PWRechts");
 		// monitor.addControlVar("Fehler setpose");
-		// monitor.addControlVar("v");
-		// monitor.addControlVar("w");
+		 monitor.addControlVar("v");
+		 monitor.addControlVar("w");
 
-		monitor.addControlVar("wZielR");
+		//monitor.addControlVar("wZielR");
 		float akku=Battery.getVoltage();
 		//monitor.writeControlComment("akku");
 		if(akku<=7.5){
@@ -488,7 +488,8 @@ public class ControlRST implements IControl {
 		float kp_r = 0.031f;
 		float ki_r = 0.00120f;
 		float kd_r = 0.016f;// bei TA=100: 0.084
-
+		monitor.writeControlVar("v", "" + this.velocity);
+		monitor.writeControlVar("w" ,""+ this.angularVelocity);
 		double[] speed = this.drive(this.velocity, this.angularVelocity); // berechne
 																			// benötigte
 																			// Winkelgeschwindigkeiten
@@ -573,20 +574,20 @@ public class ControlRST implements IControl {
 		u_old_l = (int) pw_l;
 		u_old_r = (int) pw_r;
 		// Ausschriften Dimensionierung links
-		monitor.writeControlVar("wZielL", "" + speed[0]);
-		monitor.writeControlVar("wRadLinks", "" + w_akt_l);
+		//monitor.writeControlVar("wZielL", "" + speed[0]);
+		//monitor.writeControlVar("wRadLinks", "" + w_akt_l);
 		// monitor.writeControlVar("FehlerLinks","" + e_l);
 		// monitor.writeControlVar("PWLinks","" + (int)pw_l);
 
 		// Ausschriften Dimensionierung rechts
-		monitor.writeControlVar("wZielR", "" + speed[1]);
-		monitor.writeControlVar("wRadRechts", "" + w_akt_r);
+		//monitor.writeControlVar("wZielR", "" + speed[1]);
+		//monitor.writeControlVar("wRadRechts", "" + w_akt_r);
 		// monitor.writeControlVar("FehlerRechts",""+e_r);
 		// monitor.writeControlVar("PWRechts",""+(int)pw_r);
 
 		// Ansteuerung der Motoren
-		monitor.writeControlComment("pulsweite links:" + pw_l);
-		monitor.writeControlComment("pulsweite rechts:" + pw_r);
+		//monitor.writeControlComment("pulsweite links:" + pw_l);
+		//monitor.writeControlComment("pulsweite rechts:" + pw_r);
 		leftMotor.setPower((int) pw_l);
 		rightMotor.setPower((int) pw_r);
 		this.newVW = false;
@@ -755,13 +756,24 @@ public class ControlRST implements IControl {
 			float ys = this.startPosition.getY();
 			float xz = this.destination.getX();
 			float yz = this.destination.getY();
-			this.T = Math.sqrt(Math.pow((xz - xs), 2) + Math.pow((yz - ys), 2)) / (Math.abs(v0) * 1);
+			this.T = Math.sqrt(Math.pow((xz - xs), 2) + Math.pow((yz - ys), 2)) / (Math.abs(v0));
+			
 			this.x_t[5] = 6 * (-T * v0 - xs + xz) / (Math.pow(T, 5));
 			this.x_t[4] = 15 * (T * v0 + xs - xz) / (Math.pow(T, 4));
 			this.x_t[3] = 10 * (-T * v0 - xs + xz) / (Math.pow(T, 3));
 			this.x_t[2] = 0;
 			this.x_t[1] = v0;
 			this.x_t[0] = xs;
+			/*
+			LCD.clear();
+			LCD.drawString("x0 "+x_t[0], 0, 0);
+			LCD.drawString("x1 "+x_t[1], 0, 1);
+			LCD.drawString("x2 "+x_t[2], 0, 2);
+			LCD.drawString("x3 "+x_t[3], 0, 3);
+			LCD.drawString("x4 "+x_t[4], 0, 4);
+			LCD.drawString("x5 "+x_t[5], 0, 5);
+			LCD.drawString("T "+T,0, 6);
+*/
 			this.firstPark = false;
 			monitor.writeControlComment("Parkcontrol initialisiert, T: " + T);
 			this.setStartTime((int) System.currentTimeMillis());
@@ -770,7 +782,7 @@ public class ControlRST implements IControl {
 			this.monitor.writeControlComment("pfad:" + path[0] + path[1] + path[2] + path[3]);
 			return;
 		}
-		LCD.clear();
+		/*LCD.clear();
 		LCD.drawString(
 				"Z: " + Math.round(this.destination.getX()*100)/100.0f + ", " + Math.round(this.destination.getY()*100)/100.0f + ", " + Math.round(this.destination.getHeading()*100)/100.0f,
 				0, 4);
@@ -784,7 +796,7 @@ public class ControlRST implements IControl {
 		LCD.drawString(""+path[3], 0, 3);
 		//LCD.drawString(""+Math.round(this.destination.getX()*100)/100.0f+" "+Math.round(this.destination.getY()*100)/100.0f, 0, 4);
 		//LCD.drawString(""+Math.round(this.startPosition.getX()*100)/100.0f+" "+Math.round(this.startPosition.getY()*100)/100.0f, 0, 4);
-
+*/
 		
 		double t = this.currentTime - this.startTime;
 		monitor.writeControlComment("t: " + t);
@@ -827,9 +839,9 @@ public class ControlRST implements IControl {
 		double y = 0;
 		double dy_x = 0;
 
-		for (int j = 0; j < this.x_t.length; j++) {// berechne Wert x(t)
-			x += this.x_t[j] * Math.pow(t, j);
-		}
+		
+		x = this.x_t[5] * Math.pow(t, 5)+this.x_t[4] * Math.pow(t, 4)+this.x_t[3] * Math.pow(t, 3)+this.x_t[2] * t*t+this.x_t[1] * t+this.x_t[0];
+		
 		/*
 		 * for(int k=1; k<this.x_t.length-1;k++){//berechne Wert von x'(t)
 		 * dx+=k*this.x_t[k]*Math.pow(t, k-1); }
@@ -846,6 +858,7 @@ public class ControlRST implements IControl {
 		 * y+=path[i]*Math.pow(x,i); }
 		 */
 		dy_x = 3 * path[3] * Math.pow(x, 2) + 2 * path[2] * x + path[1];
+//		y=path[3]*x*x*x+path[2]*x*x+path[1]*x+path[0];
 		double d2y_x = 6 * this.path[3] * x + 2 * this.path[2];
 		double dy_t = dy_x * dx;
 		double d2y_t = d2y_x * Math.pow(dx, 2) + dy_x * d2x;// Regel von Faa die
@@ -858,7 +871,7 @@ public class ControlRST implements IControl {
 			v = Math.sqrt(dx * dx + dy_t * dy_t);
 		}
 
-		monitor.writeControlVar("v", "" + v);
+		
 		this.setVelocity(v);
 		double w = 1 / (v * v) * (dx * d2y_t - d2x * dy_t);
 		if (currentSlot == Slot.seite /*&& !inv*/) {
@@ -866,7 +879,6 @@ public class ControlRST implements IControl {
 		}
 
 		this.setAngularVelocity(w);
-		monitor.writeControlVar("w", "" + w);
 		this.innerLoop();
 	}
 
