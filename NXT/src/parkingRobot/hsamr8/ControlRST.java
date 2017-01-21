@@ -183,7 +183,7 @@ public class ControlRST implements IControl {
 	// ParkControl variables
 	float startTime = 0;
 	double T = 0;
-	float[] path = new float[4];
+	double[] path = new double[4];
 	double[] x_t = new double[6];
 	// double[] y_t=new double[16];
 	boolean inv = false;
@@ -346,14 +346,24 @@ public class ControlRST implements IControl {
 	 *            position where path ends
 	 * @param line line number of the slot
 	 * 	 */
-	public void setPath(float[] path, boolean inv, Pose start, Pose ziel, int line) {
-		this.path = path;
+	public void setPath(double[] path, boolean inv, Pose start, Pose ziel, int line) {
 		this.inv = inv;
-		this.startPosition = start;
-		this.destination = ziel;
 		this.firstPark = true;
 		this.ParkStatus = false;
 		this.line=line;
+		if(!inv || line!=1){
+			this.path = path;
+			this.startPosition = start;
+			this.destination = ziel;
+		}
+		else{
+			Pose help = this.startPosition;
+			this.startPosition=this.destination;
+			this.destination=help;
+		}
+
+
+
 	}
 
 	/**
@@ -992,7 +1002,7 @@ public class ControlRST implements IControl {
 				ParkStatus = false;
 				monitor.writeControlComment("Ende Phase 1");
 
-				float[] a = { -0.1103703703703716f, 1.8962962962963157f, -7.901234567901323f, 7.023319615912314f };
+				double[] a = { -0.1103703703703716f, 1.8962962962963157f, -7.901234567901323f, 7.023319615912314f };
 				this.setPath(a, false, new Pose(0.15f, 0.02f, 0.0f), new Pose(0.6f, -0.3f, 0.0f),0);
 				return;
 
@@ -1008,7 +1018,7 @@ public class ControlRST implements IControl {
 				ParkStatus = false;
 				phase = 3;
 				this.currentCTRLMODE = ControlMode.PARK_CTRL;
-				float[] a = { -0.1103703703703716f, 1.8962962962963157f, -7.901234567901323f, 7.023319615912314f };
+				double[] a = { -0.1103703703703716f, 1.8962962962963157f, -7.901234567901323f, 7.023319615912314f };
 				this.setPath(a, true, new Pose(0.6f, -0.3f, 0.0f), new Pose(0.15f, 0.02f, 0.0f),0);
 				return;
 

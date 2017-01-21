@@ -28,9 +28,9 @@ import parkingRobot.hsamr8.PerceptionPMP;
 public class GuidanceAT
 {
 
-	static float[] Koeffizienten = new float[4];	// Polynomkoeffizienten
-	static float[] Zielkoordinaten = new float[2];	// allgemeine Zielkoordinaten für Ein-/Ausparken
-	static float[] Startkoordinaten = new float[2];	// allgemeine Startkoordinaten für Ein-/Ausparken
+	static double[] Koeffizienten = new double[4];	// Polynomkoeffizienten
+	static double[] Zielkoordinaten = new double[2];	// allgemeine Zielkoordinaten für Ein-/Ausparken
+	static double[] Startkoordinaten = new double[2];	// allgemeine Startkoordinaten für Ein-/Ausparken
 	static int line=0;								// zum Speichern der aktuellen Linie
 
 	/**
@@ -250,13 +250,13 @@ public class GuidanceAT
 			/********************************************************************************************************************************************************/
 			case EINPARKEN: 		// wenn Modus Einparken
 
-				float  xz1, yz1;
+				double  xz1, yz1;
 
 				if (lastModus != CurrentModus.EINPARKEN) 		// Initialbefehle (nur bei erstmaligen Aufruf)
 				{												// Zielkoordinaten setzen:
 					xz1 = Zielkoordinaten[0];
 					yz1 = Zielkoordinaten[1];
-					float [] a=Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1);
+					double [] a=(Pfadgenerator(Startkoordinaten[0], Startkoordinaten[1], xz1, yz1));
 
 					LCD.drawString("xz1 "+xz1, 0, 0);
 					
@@ -267,8 +267,8 @@ public class GuidanceAT
 					LCD.drawString("a1 "+a[1], 0, 5);
 					LCD.drawString("a2 "+a[2], 0, 6);
 					LCD.drawString("a3 "+a[3], 0, 7);
-					control.setPath(a, false, new Pose(Startkoordinaten[0], Startkoordinaten[1],navigation.getPose().getHeading()),
-							new Pose(xz1, yz1, navigation.getPose().getHeading()), line); 	// Pfad setzen
+					control.setPath( a, false, new Pose((float)Startkoordinaten[0], (float)Startkoordinaten[1],navigation.getPose().getHeading()),
+							new Pose((float)xz1, (float)yz1, navigation.getPose().getHeading()), line); 	// Pfad setzen
 					control.setCtrlMode(ControlMode.PARK_CTRL);								// Park Control anschalten, damit Pfad abgefahren wird
 					navigation.setDetectionState(false);
 					currentStatus = CurrentStatus.DRIVING;
@@ -305,7 +305,7 @@ public class GuidanceAT
 			/********************************************************************************************************************************************************/
 			case AUSPARKEN:			// wenn Modus Ausparken
 
-				float xs, ys, xz, yz;
+				double xs, ys, xz, yz;
 
 				if (lastModus != CurrentModus.AUSPARKEN) 	// Initialbefehle (nur bei erstmaligen Aufruf)
 				{											// Startkoordinaten setzen
@@ -323,7 +323,7 @@ public class GuidanceAT
 
 					xz = Startkoordinaten[0];  // Zielkoordinaten = Startkoordinaten von Einparken (da jetzt rückwärts ausgeparkt wird)
 					yz = Startkoordinaten[1];
-					float[]b=Pfadgenerator(xs, ys, xz, yz);
+					double[] b=Pfadgenerator(xs, ys, xz, yz);
 					LCD.drawString("xz "+xz, 0, 0);
 					
 					LCD.drawString("yz "+yz, 0, 1);
@@ -333,7 +333,7 @@ public class GuidanceAT
 					LCD.drawString("a1 "+b[1], 0, 5);
 					LCD.drawString("a2 "+b[2], 0, 6);
 					LCD.drawString("a3 "+b[3], 0, 7);
-                    control.setPath(b, true, navigation.getPose(), new Pose(xz, yz, navigation.getPose().getHeading()),line); 	// Pfad setzen
+                    control.setPath(b, true, navigation.getPose(), new Pose((float)xz, (float)yz, navigation.getPose().getHeading()),line); 	// Pfad setzen
 
 					control.setCtrlMode(ControlMode.PARK_CTRL);
 
@@ -473,16 +473,16 @@ public class GuidanceAT
 	}
 
 
-	private static float[] Pfadgenerator(float xs, float ys, float xz, float yz) // Pfadgenerator, liefert Koeffizienten zurück
+	private static double[] Pfadgenerator(double xs, double ys, double xz, double yz) // Pfadgenerator, liefert Koeffizienten zurück
 	{
-		float[] werte = new float[4];	// Koeffizientenarray
+		double[] werte = new double[4];	// Koeffizientenarray
 
 										// zusätzliche Variablen:
-		float a, b, c, d;
-		float x1, x2, x3, x4, x5, x6, x7, x8, x9, x10;
-		float y1, y2;
-		float x11, x12, x13, x14;
-		float y11, y12;
+		double a, b, c, d;
+		double x1, x2, x3, x4, x5, x6, x7, x8, x9, x10;
+		double y1, y2;
+		double x11, x12, x13, x14;
+		double y11, y12;
 
 		x1 = 1 / (xs);
 		x2 = 1 / (xs * xs);

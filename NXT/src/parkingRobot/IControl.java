@@ -115,6 +115,6 @@ public interface IControl {
 	 * @param ziel destination pose
 	 * @param line line on which the slot is on (0,1 or 4)
 	 */
-	public void setPath(float[] path, boolean inv, Pose start, Pose ziel, int line);
+	public void setPath(double[] path, boolean inv, Pose start, Pose ziel, int line);
 }
 
