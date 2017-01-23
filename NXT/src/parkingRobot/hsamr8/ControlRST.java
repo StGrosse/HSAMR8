@@ -1496,7 +1496,7 @@ public class ControlRST implements IControl {
 			// monitor.writeControlComment("nah Kurve6: x:"+x+" y:"+y);
 			if (x < 0.35 && x > 0.25 && y > 0.42) {
 				monitor.writeControlComment("Kurve 6 möglich");
-				Sound.beep();
+				//Sound.beep();
 				return dest.left;
 			} else
 				return dest.no;
